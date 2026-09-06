@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+   עורך תוספי כרום
+   רעיון מקורי : מיני האקר  — https://mitmachim.top/post/1239410
+   פיתוח ויצירה: צול גאה    — https://TSOOLGEE.UK
+  ============================================================
+  קובץ HTML יחיד. ללא שרת, ללא build, ללא ספריות חיצוניות.
+  כל הקבצים נשארים במחשב שלך ולא נשלחים לשום מקום.
+-->
+<html lang="he" dir="rtl" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>עורך תוספי כרום</title>
+<style>
+/* ============ variables & Themes ============ */
+:root[data-theme="dark"]{
+  --bg-primary:#1e1e1e; --bg-secondary:#252526; --bg-tertiary:#333333;
+  --bg-hover:#2a2d2e; --bg-active:#37373d; --text-main:#cccccc; --text-muted:#858585;
+  --border-color:#3c3c3c; --accent-color:#0e639c; --accent-hover:#1177bb;
+  --danger-color:#f14c4c; --warning-color:#cca700; --status-bar-bg:#007acc; --editor-bg:#1e1e1e;
+  --ok-color:#4ec9b0; --overlay:rgba(0,0,0,.55); --shadow:0 8px 28px rgba(0,0,0,.5);
+  --gutter-text:#6e7681; --sel-bg:#264f78; --find-hit:rgba(234,180,60,.35); --find-cur:rgba(234,180,60,.75);
+  --t-cmt:#6a9955; --t-str:#ce9178; --t-num:#b5cea8; --t-kw:#569cd6; --t-lit:#569cd6;
+  --t-fn:#dcdcaa; --t-key:#9cdcfe; --t-tag:#569cd6; --t-attr:#9cdcfe; --t-at:#c586c0; --t-prop:#9cdcfe;
+}
+:root[data-theme="light"]{
+  --bg-primary:#ffffff; --bg-secondary:#f3f3f3; --bg-tertiary:#e8e8e8;
+  --bg-hover:#e4e6f1; --bg-active:#d0d0d0; --text-main:#333333; --text-muted:#717171;
+  --border-color:#e0e0e0; --accent-color:#007acc; --accent-hover:#005999;
+  --danger-color:#cd3131; --warning-color:#bf8800; --status-bar-bg:#007acc; --editor-bg:#ffffff;
+  --ok-color:#0a7d64; --overlay:rgba(0,0,0,.35); --shadow:0 8px 28px rgba(0,0,0,.18);
+  --gutter-text:#9aa0a6; --sel-bg:#add6ff; --find-hit:rgba(234,180,60,.4); --find-cur:rgba(234,150,20,.75);
+  --t-cmt:#008000; --t-str:#a31515; --t-num:#098658; --t-kw:#0000ff; --t-lit:#0000ff;
+  --t-fn:#795e26; --t-key:#0451a5; --t-tag:#800000; --t-attr:#e50000; --t-at:#af00db; --t-prop:#0451a5;
+}
+:root{ --r:6px; --r-lg:10px; --mono:"Consolas","Menlo","DejaVu Sans Mono","Courier New",monospace; }
+
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+body{display:flex;flex-direction:column;height:100vh;background:var(--bg-primary);color:var(--text-main);overflow:hidden;user-select:none;font-size:13px;}
+button{font:inherit;color:inherit}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text-muted) 40%,transparent);border-radius:8px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--text-muted) 70%,transparent);background-clip:content-box}
+:focus-visible{outline:2px solid var(--accent-hover);outline-offset:1px}
+
+/* ============ Top Bar ============ */
+.top-bar{height:44px;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:10px;flex-shrink:0}
+.brand-section{display:flex;align-items:center;gap:12px;font-size:13px;min-width:0}
+.brand-title{font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.brand-title .logo{width:20px;height:20px;border-radius:5px;background:linear-gradient(140deg,var(--accent-hover),var(--accent-color));display:grid;place-items:center;font-size:11px;color:#fff}
+.credits{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.credits a{color:var(--accent-color);text-decoration:none}
+.credits a:hover{text-decoration:underline}
+.extension-name-input{background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-main);padding:5px 9px;border-radius:var(--r);font-size:13px;width:180px;transition:border-color .15s}
+.extension-name-input:focus{outline:none;border-color:var(--accent-hover)}
+.actions-section{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.btn{background:var(--bg-tertiary);color:var(--text-main);border:1px solid var(--border-color);padding:6px 11px;border-radius:var(--r);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--bg-hover);border-color:var(--text-muted)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--accent-color);color:#fff;border-color:transparent}
+.btn-primary:hover{background:var(--accent-hover);border-color:transparent}
+.btn-icon{padding:6px 8px}
+.btn .badge{background:var(--danger-color);color:#fff;border-radius:20px;padding:0 5px;font-size:10px;line-height:15px;min-width:16px;text-align:center}
+.btn .badge.warn{background:var(--warning-color);color:#000}
+
+/* ============ Main ============ */
+.main-container{display:flex;flex:1;overflow:hidden}
+.sidebar{width:260px;min-width:150px;max-width:520px;background:var(--bg-secondary);border-left:1px solid var(--border-color);display:flex;flex-direction:column;flex-shrink:0}
+body.sb-collapsed .sidebar,body.sb-collapsed .resizer{display:none}
+.sidebar-header{padding:8px 10px;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:4px}
+.sidebar-header .tools{display:flex;gap:2px}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);width:24px;height:24px;border-radius:var(--r);display:grid;place-items:center;font-size:13px;transition:background .12s,color .12s}
+.icon-btn:hover{background:var(--bg-hover);color:var(--text-main)}
+.file-tree{flex:1;overflow:auto;padding:4px 0 40px;direction:ltr;text-align:left}
+.file-tree.drop-root{box-shadow:inset 0 0 0 2px var(--accent-hover)}
+.tree-item{padding:4px 8px 4px 6px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-main);border-radius:var(--r);margin:1px 6px;position:relative;white-space:nowrap}
+.tree-item:hover{background:var(--bg-hover)}
+.tree-item.active{background:var(--bg-active)}
+.tree-item.drop-target{box-shadow:inset 0 0 0 2px var(--accent-hover)}
+.tree-item.dragging{opacity:.4}
+.tree-item .tw{width:12px;flex-shrink:0;color:var(--text-muted);font-size:9px;text-align:center;transition:transform .12s}
+.tree-item .ic{flex-shrink:0;font-size:12px;width:16px;text-align:center}
+.tree-item .nm{overflow:hidden;text-overflow:ellipsis;flex:1}
+.tree-item .dot{color:var(--accent-color);font-size:16px;line-height:1;flex-shrink:0}
+.tree-item .more{opacity:0;background:none;border:none;color:var(--text-muted);cursor:pointer;border-radius:4px;width:20px;height:20px;flex-shrink:0;font-size:14px;line-height:1}
+.tree-item:hover .more,.tree-item.active .more,.tree-item .more:focus-visible{opacity:1}
+.tree-item .more:hover{background:var(--bg-active);color:var(--text-main)}
+.tree-item .rn{background:var(--bg-primary);border:1px solid var(--accent-hover);color:var(--text-main);border-radius:4px;padding:1px 4px;font-size:13px;width:100%;font-family:var(--mono)}
+.tree-empty{color:var(--text-muted);font-size:12px;padding:14px;text-align:center;direction:rtl}
+.resizer{width:5px;cursor:col-resize;background:transparent;flex-shrink:0;margin-inline-start:-3px;z-index:5}
+.resizer:hover,.resizer.on{background:var(--accent-hover)}
+
+/* ============ Content ============ */
+.content-area{flex:1;display:flex;flex-direction:column;background:var(--editor-bg);min-width:0}
+.tabs-bar{height:36px;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);display:flex;overflow-x:auto;overflow-y:hidden;direction:ltr;flex-shrink:0;scrollbar-width:none}
+.tabs-bar::-webkit-scrollbar{height:0}
+.tab{padding:0 8px 0 12px;height:100%;display:flex;align-items:center;gap:8px;background:var(--bg-secondary);border-right:1px solid var(--border-color);color:var(--text-muted);font-size:12px;cursor:pointer;min-width:110px;max-width:200px;flex-shrink:0;position:relative;border-top:2px solid transparent}
+.tab:hover{background:var(--bg-hover)}
+.tab.active{background:var(--editor-bg);color:var(--text-main);border-top-color:var(--accent-color)}
+.tab.preview .tab-name{font-style:italic}
+.tab.dragging{opacity:.4}
+.tab-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.tab-close{border-radius:50%;width:17px;height:17px;display:grid;place-items:center;font-size:10px;flex-shrink:0;color:var(--text-muted)}
+.tab.active .tab-close,.tab:hover .tab-close{color:var(--text-main)}
+.tab-close:hover{background:var(--bg-active)}
+.tab.dirty .tab-close{font-size:17px;color:var(--accent-color)}
+.tab.dirty:hover .tab-close,.tab.dirty .tab-close:hover{font-size:10px;color:var(--text-main)}
+
+.editor-container{flex:1;position:relative;overflow:hidden;display:flex;direction:ltr}
+.gutter{width:52px;flex-shrink:0;background:var(--editor-bg);overflow:hidden;position:relative;border-right:1px solid transparent}
+.gutter-inner{position:absolute;top:0;left:0;right:0;padding:10px 8px 10px 0;text-align:right;color:var(--gutter-text);font-family:var(--mono);font-size:14px;line-height:1.5;white-space:pre;will-change:transform}
+body.wrap-on .gutter{display:none}
+.ed-scroll{position:relative;flex:1;overflow:hidden}
+.hl{position:absolute;top:0;left:0;margin:0;padding:10px 12px;font-family:var(--mono);font-size:14px;line-height:1.5;white-space:pre;pointer-events:none;color:var(--text-main);will-change:transform;tab-size:2}
+.code-textarea{position:absolute;inset:0;width:100%;height:100%;background:transparent;color:transparent;caret-color:var(--text-main);border:none;outline:none;padding:10px 12px;font-family:var(--mono);font-size:14px;line-height:1.5;resize:none;direction:ltr;tab-size:2;white-space:pre;overflow:auto;-webkit-text-fill-color:transparent}
+body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:break-word}
+.code-textarea::selection{background:var(--sel-bg);-webkit-text-fill-color:transparent}
+.t-cmt{color:var(--t-cmt);font-style:italic}.t-str{color:var(--t-str)}.t-num{color:var(--t-num)}
+.t-kw{color:var(--t-kw)}.t-lit{color:var(--t-lit)}.t-fn{color:var(--t-fn)}.t-key{color:var(--t-key)}
+.t-tag{color:var(--t-tag)}.t-attr{color:var(--t-attr)}.t-at{color:var(--t-at)}.t-prop{color:var(--t-prop)}
+
+/* image / binary viewer */
+.viewer{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;direction:rtl;background:var(--editor-bg);padding:24px;text-align:center}
+.viewer .frame{padding:20px;border:1px solid var(--border-color);border-radius:var(--r-lg);background:repeating-conic-gradient(color-mix(in srgb,var(--text-muted) 18%,transparent) 0% 25%,transparent 0% 50%) 50%/18px 18px;max-width:80%;max-height:52vh;display:grid;place-items:center}
+.viewer img{max-width:100%;max-height:46vh;image-rendering:pixelated;display:block}
+.viewer .meta{color:var(--text-muted);font-size:12px;line-height:1.9}
+.viewer .meta b{color:var(--text-main);font-family:var(--mono)}
+.viewer .row{display:flex;gap:8px}
+
+/* welcome */
+.welcome{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;direction:rtl;color:var(--text-muted);padding:24px;overflow:auto}
+.welcome h2{font-size:20px;color:var(--text-main);font-weight:600}
+.welcome .keys{display:grid;grid-template-columns:auto auto;gap:7px 16px;font-size:12px;align-items:center}
+.welcome .keys .kc{direction:ltr;unicode-bidi:isolate;white-space:nowrap;text-align:left}
+.welcome .keys kbd{background:var(--bg-tertiary);border:1px solid var(--border-color);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-family:var(--mono);font-size:11px;color:var(--text-main)}
+.welcome .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+/* ============ find bar ============ */
+.findbar{position:absolute;top:8px;right:20px;z-index:20;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:8px;display:none;gap:6px;flex-direction:column;direction:rtl}
+.findbar.open{display:flex}
+.findbar .line{display:flex;gap:6px;align-items:center}
+.findbar input{background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-main);border-radius:var(--r);padding:5px 8px;font-size:12px;width:190px;font-family:var(--mono);direction:ltr}
+.findbar input:focus{outline:none;border-color:var(--accent-hover)}
+.findbar .count{font-size:11px;color:var(--text-muted);min-width:74px;text-align:center}
+
+/* ============ Status Bar ============ */
+.status-bar{height:24px;background:var(--status-bar-bg);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;direction:ltr;flex-shrink:0}
+.status-item{display:flex;align-items:center;gap:14px}
+.status-item span{white-space:nowrap}
+.status-item .he{direction:rtl;unicode-bidi:isolate}
+.num{direction:ltr;unicode-bidi:isolate}
+.status-item .clickable{cursor:pointer;padding:0 5px;border-radius:4px}
+.status-item .clickable:hover{background:rgba(255,255,255,.18)}
+#st-save{opacity:.85;transition:opacity .3s}
+
+/* ============ problems panel ============ */
+.problems{height:0;background:var(--bg-secondary);border-top:1px solid var(--border-color);overflow:hidden;transition:height .16s ease;flex-shrink:0}
+.problems.open{height:210px}
+.problems .ph{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border-color);font-size:11px;font-weight:700;color:var(--text-muted)}
+.problems .pl{overflow:auto;height:calc(100% - 30px);padding:4px 0}
+.prob{display:flex;gap:8px;align-items:flex-start;padding:6px 12px;font-size:12px;cursor:pointer;line-height:1.5}
+.prob:hover{background:var(--bg-hover)}
+.prob .k{flex-shrink:0;font-size:12px}
+.prob.err .k{color:var(--danger-color)}.prob.warn .k{color:var(--warning-color)}
+.prob .loc{color:var(--text-muted);font-family:var(--mono);font-size:11px;flex-shrink:0;direction:ltr}
+.prob .msg{flex:1}
+.prob-ok{padding:18px;text-align:center;color:var(--ok-color);font-size:13px}
+
+/* ============ context menu ============ */
+.ctx{position:fixed;z-index:900;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:5px;min-width:196px;display:none;direction:rtl}
+.ctx.open{display:block}
+.ctx button{display:flex;width:100%;background:none;border:none;text-align:right;padding:7px 10px;font-size:12.5px;border-radius:var(--r);cursor:pointer;gap:9px;align-items:center}
+.ctx button:hover{background:var(--bg-hover)}
+.ctx button.danger{color:var(--danger-color)}
+.ctx button .k{width:16px;text-align:center;flex-shrink:0;opacity:.85}
+.ctx button .sc{margin-inline-start:auto;color:var(--text-muted);font-size:10.5px;font-family:var(--mono)}
+.ctx hr{border:none;border-top:1px solid var(--border-color);margin:5px 2px}
+
+/* ============ modal ============ */
+.backdrop{position:fixed;inset:0;background:var(--overlay);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.backdrop.open{display:flex}
+.dialog{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow);width:min(560px,100%);max-height:88vh;display:flex;flex-direction:column;direction:rtl}
+.dialog.wide{width:min(760px,100%)}
+.dialog h3{padding:15px 18px;font-size:15px;border-bottom:1px solid var(--border-color);font-weight:600}
+.dialog .body{padding:16px 18px;overflow:auto;font-size:13px;line-height:1.75}
+.dialog .foot{padding:12px 18px;border-top:1px solid var(--border-color);display:flex;gap:8px;justify-content:flex-start}
+.dialog input[type=text],.dialog select,.dialog textarea{width:100%;background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-main);border-radius:var(--r);padding:8px 10px;font-size:13px;margin-top:6px}
+.dialog input[type=text],.dialog textarea{font-family:var(--mono)}
+.dialog input:focus,.dialog select:focus,.dialog textarea:focus{outline:none;border-color:var(--accent-hover)}
+.dialog .err{color:var(--danger-color);font-size:12px;margin-top:7px;min-height:16px}
+.dialog .hint{color:var(--text-muted);font-size:12px}
+.btn-danger{background:var(--danger-color);color:#fff;border-color:transparent}
+.btn-danger:hover{background:var(--danger-color);filter:brightness(1.12);border-color:transparent}
+.dialog kbd{background:var(--bg-tertiary);border:1px solid var(--border-color);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-family:var(--mono);font-size:11px}
+.dialog ol,.dialog ul{margin:8px 22px 12px}
+.dialog code{font-family:var(--mono);background:var(--bg-tertiary);padding:1px 5px;border-radius:4px;font-size:12px}
+.dialog h4{margin:14px 0 4px;font-size:13.5px;color:var(--text-main)}
+.dialog .credit-box{background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--r-lg);padding:12px 14px;margin-top:12px;line-height:2}
+.dialog .credit-box a{color:var(--accent-color)}
+.dialog .choice{background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--r-lg);padding:11px 14px;margin-bottom:10px}
+.dialog .choice b{display:block;margin-bottom:3px;font-size:13.5px}
+.dialog .choice div{color:var(--text-muted);font-size:12.5px;line-height:1.7}
+
+/* quick open */
+.qo{position:fixed;top:70px;left:50%;transform:translateX(-50%);width:min(520px,92vw);background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--r-lg);box-shadow:var(--shadow);z-index:1100;display:none;overflow:hidden}
+.qo.open{display:block}
+.qo input{width:100%;background:var(--bg-primary);border:none;border-bottom:1px solid var(--border-color);color:var(--text-main);padding:11px 14px;font-size:14px;font-family:var(--mono);direction:ltr}
+.qo input:focus{outline:none}
+.qo .list{max-height:320px;overflow:auto;direction:ltr;padding:4px}
+.qo .qi{padding:7px 11px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:center;border-radius:var(--r)}
+.qo .qi.sel{background:var(--accent-color);color:#fff}
+.qo .qi .p{color:var(--text-muted);font-size:11px}
+.qo .qi.sel .p{color:#e8f2fa}
+
+/* toasts */
+.toasts{position:fixed;bottom:36px;left:14px;z-index:1200;display:flex;flex-direction:column;gap:8px;direction:rtl}
+.toast{background:var(--bg-secondary);border:1px solid var(--border-color);border-inline-start:3px solid var(--accent-color);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:10px 14px;font-size:12.5px;max-width:340px;animation:tin .18s ease}
+.toast.ok{border-inline-start-color:var(--ok-color)}
+.toast.err{border-inline-start-color:var(--danger-color)}
+.toast.warn{border-inline-start-color:var(--warning-color)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.dropzone{position:fixed;inset:0;z-index:1300;background:var(--overlay);display:none;align-items:center;justify-content:center;pointer-events:none}
+.dropzone.on{display:flex}
+@media (max-width:1180px){ .credits{display:none} }
+@media (max-width:900px){ .extension-name-input{width:120px} .btn{padding:6px 8px;font-size:11.5px} .brand-title span:not(.logo){display:none} }
+@media (max-width:720px){ .top-bar{height:auto;min-height:44px;flex-wrap:wrap;padding:6px 8px} .actions-section{flex-wrap:wrap} }
+.dropzone div{border:3px dashed var(--accent-hover);border-radius:18px;padding:36px 54px;font-size:17px;background:var(--bg-secondary);color:var(--text-main)}
+</style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="brand-section">
+    <span class="brand-title"><span class="logo">🧩</span>עורך תוספים</span>
+    <input type="text" class="extension-name-input" id="ext-name" value="My Extension" title="שם התוסף — מסונכרן עם manifest.json" spellcheck="false">
+    <span class="credits">רעיון: מיני האקר · יוצר: <a href="https://TSOOLGEE.UK" target="_blank" rel="noopener">צול גאה — TSOOLGEE.UK</a></span>
+  </div>
+  <div class="actions-section">
+    <button class="btn btn-icon" id="theme-toggle" title="מצב בהיר / כהה">🌙</button>
+    <button class="btn" id="btn-new" title="פרויקט חדש">חדש</button>
+    <button class="btn" id="btn-open" title="פתיחת ZIP (Ctrl+O)">פתיחת ZIP</button>
+    <button class="btn btn-primary" id="btn-export" title="הורדת ZIP (Ctrl+Shift+S)">הורדת ZIP</button>
+    <button class="btn" id="btn-check" title="בדיקת תקינות">בדיקת תקינות <span class="badge" id="badge-err" hidden>0</span><span class="badge warn" id="badge-warn" hidden>0</span></button>
+    <button class="btn" id="btn-help" title="עזרה ואודות">עזרה</button>
+  </div>
+</header>
+
+<div class="main-container">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span>קבצי הפרויקט</span>
+      <span class="tools">
+        <button class="icon-btn" id="t-newfile" title="קובץ חדש (Ctrl+N)">🗎</button>
+        <button class="icon-btn" id="t-newfolder" title="תיקייה חדשה">🗀</button>
+        <button class="icon-btn" id="t-upload" title="העלאת קבצים / אייקונים">⬆</button>
+        <button class="icon-btn" id="t-collapse" title="כיווץ הכל">⇱</button>
+      </span>
+    </div>
+    <div class="file-tree" id="tree"></div>
+  </aside>
+  <div class="resizer" id="resizer"></div>
+
+  <main class="content-area">
+    <div class="tabs-bar" id="tabs"></div>
+    <div class="editor-container" id="ed-container">
+      <div class="gutter" id="gutter"><div class="gutter-inner" id="gutter-inner"></div></div>
+      <div class="ed-scroll" id="ed-scroll">
+        <pre class="hl" id="hl" aria-hidden="true"><code id="hl-code"></code></pre>
+        <textarea class="code-textarea" id="code" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+      </div>
+      <div class="findbar" id="findbar">
+        <div class="line">
+          <input type="text" id="f-find" placeholder="חיפוש">
+          <span class="count" id="f-count">0 / 0</span>
+          <button class="btn btn-icon" id="f-prev" title="הקודם (Shift+Enter)">↑</button>
+          <button class="btn btn-icon" id="f-next" title="הבא (Enter)">↓</button>
+          <button class="btn btn-icon" id="f-close" title="סגירה (Esc)">✕</button>
+        </div>
+        <div class="line" id="f-rep-line">
+          <input type="text" id="f-replace" placeholder="החלפה">
+          <button class="btn" id="f-rep1">החלף</button>
+          <button class="btn" id="f-repall">החלף הכל</button>
+        </div>
+      </div>
+    </div>
+    <div class="problems" id="problems">
+      <div class="ph"><span>בדיקת תקינות</span><button class="icon-btn" id="p-close" title="סגירה">✕</button></div>
+      <div class="pl" id="p-list"></div>
+    </div>
+  </main>
+</div>
+
+<footer class="status-bar">
+  <div class="status-item">
+    <span id="st-path">—</span>
+    <span id="st-pos">Ln 1, Col 1</span>
+    <span id="st-lang">—</span>
+    <span class="clickable" id="st-wrap" title="גלישת שורות">Wrap: off</span>
+  </div>
+  <div class="status-item">
+    <span class="he" id="st-files">0 קבצים</span>
+    <span class="clickable he" id="st-prob" title="בדיקת תקינות">0 שגיאות · 0 אזהרות</span>
+    <span class="he" id="st-save">מוכן</span>
+  </div>
+</footer>
+
+<div class="ctx" id="ctx"></div>
+<div class="backdrop" id="backdrop"></div>
+<div class="qo" id="qo"><input type="text" id="qo-in" placeholder="חיפוש קובץ…" spellcheck="false"><div class="list" id="qo-list"></div></div>
+<div class="toasts" id="toasts"></div>
+<div class="dropzone" id="dropzone"><div>שחררו כאן קבצים או קובץ ZIP</div></div>
+<input type="file" id="file-input" multiple hidden>
+<input type="file" id="zip-input" hidden>
+<input type="file" id="img-input" accept="image/*" hidden>
+
+<script>
+"use strict";
+/* =========================================================================
+   עורך תוספי כרום
+   רעיון: מיני האקר (mitmachim.top/post/1239410) · יוצר: צול גאה (TSOOLGEE.UK)
+   ========================================================================= */
+
+const $ = id => document.getElementById(id);
+const TEXT_EXT = ['json','js','mjs','cjs','css','html','htm','txt','md','svg','xml','csv','yml','yaml','ts','jsx','tsx','map','webmanifest','ini','log'];
+const IMG_EXT  = ['png','jpg','jpeg','gif','webp','bmp','ico','svg'];
+const LANG_OF  = {json:'json',js:'js',mjs:'js',cjs:'js',ts:'js',jsx:'js',tsx:'js',css:'css',html:'html',htm:'html',svg:'html',xml:'html',webmanifest:'json',map:'json'};
+const JUNK     = [/^__MACOSX\//,/(^|\/)\.DS_Store$/,/(^|\/)Thumbs\.db$/,/(^|\/)desktop\.ini$/i];
+const WIN_BAD  = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+
+const ext  = p => { const i = p.lastIndexOf('.'); return i < 0 ? '' : p.slice(i+1).toLowerCase(); };
+const base = p => p.slice(p.lastIndexOf('/')+1);
+const dir  = p => { const i = p.lastIndexOf('/'); return i < 0 ? '' : p.slice(0,i); };
+const join = (d,n) => d ? d+'/'+n : n;
+const isImg = p => IMG_EXT.includes(ext(p));
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const fmtSize = b => b < 1024 ? b+' B' : b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(2)+' MB';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ===================== ZIP (ללא ספריות חיצוניות) ===================== */
+const CRC_T = (() => { const t = new Uint32Array(256);
+  for (let i=0;i<256;i++){ let c=i; for(let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[i]=c>>>0; } return t; })();
+function crc32(u8){ let c = 0xFFFFFFFF; for (let i=0;i<u8.length;i++) c = CRC_T[(c^u8[i])&0xFF] ^ (c>>>8); return (c^0xFFFFFFFF)>>>0; }
+
+async function deflateRaw(u8){
+  if (typeof CompressionStream === 'undefined' || !u8.length) return null;
+  try{
+    const s = new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    const out = new Uint8Array(await new Response(s).arrayBuffer());
+    return out.length < u8.length ? out : null;
+  }catch(e){ return null; }
+}
+async function inflateRaw(u8){
+  const s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+function dosTime(d = new Date()){
+  return { t: (d.getHours()<<11) | (d.getMinutes()<<5) | (d.getSeconds()>>1),
+           d: ((d.getFullYear()-1980)<<9) | ((d.getMonth()+1)<<5) | d.getDate() };
+}
+
+/* entries: [{name, data:Uint8Array, folder:bool}] */
+async function zipWrite(entries){
+  const enc = new TextEncoder(), { t, d } = dosTime();
+  const parts = [], central = []; let offset = 0;
+  for (const e of entries){
+    const nameB = enc.encode(e.name);
+    const raw   = e.folder ? new Uint8Array(0) : e.data;
+    const packed = e.folder ? null : await deflateRaw(raw);
+    const method = packed ? 8 : 0;
+    const body   = packed || raw;
+    const crc    = e.folder ? 0 : crc32(raw);
+
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true);
+    lh.setUint16(8,method,true); lh.setUint16(10,t,true); lh.setUint16(12,d,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,body.length,true); lh.setUint32(22,raw.length,true);
+    lh.setUint16(26,nameB.length,true); lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer), nameB, body);
+
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true);
+    ch.setUint16(8,0x0800,true); ch.setUint16(10,method,true); ch.setUint16(12,t,true); ch.setUint16(14,d,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,body.length,true); ch.setUint32(24,raw.length,true);
+    ch.setUint16(28,nameB.length,true); ch.setUint16(30,0,true); ch.setUint16(32,0,true);
+    ch.setUint16(34,0,true); ch.setUint16(36,0,true);
+    ch.setUint32(38, e.folder ? 0x10 : 0, true); ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer), nameB);
+
+    offset += 30 + nameB.length + body.length;
+  }
+  const cdSize = central.reduce((a,b) => a+b.length, 0);
+  const eo = new DataView(new ArrayBuffer(22));
+  eo.setUint32(0,0x06054b50,true); eo.setUint16(8,entries.length,true); eo.setUint16(10,entries.length,true);
+  eo.setUint32(12,cdSize,true); eo.setUint32(16,offset,true);
+  return new Blob([...parts, ...central, new Uint8Array(eo.buffer)], { type:'application/zip' });
+}
+
+async function zipRead(buf){
+  const u8 = new Uint8Array(buf), dv = new DataView(buf);
+  if (u8.length < 22 || u8[0] !== 0x50 || u8[1] !== 0x4B) throw new Error('הקובץ אינו ZIP תקין (חסרה חתימת PK בתחילתו).');
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 66000); i--)
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('לא נמצא אינדקס בקובץ ה-ZIP. ייתכן שהוא פגום או מפוצל.');
+
+  const count = dv.getUint16(eocd+10, true);
+  let p = dv.getUint32(eocd+16, true);
+  const dec = new TextDecoder('utf-8'), decCp = new TextDecoder('utf-8', { fatal:false });
+  const out = [];
+  for (let i = 0; i < count; i++){
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const flags = dv.getUint16(p+8, true), method = dv.getUint16(p+10, true);
+    const compSize = dv.getUint32(p+20, true), rawSize = dv.getUint32(p+24, true);
+    const nLen = dv.getUint16(p+28, true), eLen = dv.getUint16(p+30, true), cLen = dv.getUint16(p+32, true);
+    const lho  = dv.getUint32(p+42, true);
+    const name = (flags & 0x800 ? dec : decCp).decode(u8.subarray(p+46, p+46+nLen));
+    p += 46 + nLen + eLen + cLen;
+
+    if (dv.getUint32(lho, true) !== 0x04034b50) continue;
+    const lN = dv.getUint16(lho+26, true), lE = dv.getUint16(lho+28, true);
+    const start = lho + 30 + lN + lE;
+    const chunk = u8.subarray(start, start + compSize);
+    const folder = name.endsWith('/') || (rawSize === 0 && name.endsWith('/'));
+    let data = new Uint8Array(0);
+    if (!folder && rawSize > 0){
+      if (method === 0) data = chunk.slice();
+      else if (method === 8) { try { data = await inflateRaw(chunk); } catch(e){ throw new Error('נכשל פענוח "'+name+'". ייתכן שה-ZIP דחוס בשיטה לא נתמכת.'); } }
+      else throw new Error('שיטת דחיסה לא נתמכת בקובץ "'+name+'".');
+    }
+    out.push({ name, folder, data });
+  }
+  if (!out.length) throw new Error('קובץ ה-ZIP ריק.');
+  return out;
+}
+
+/* ===================== מודל הפרויקט ===================== */
+const P = { name:'My Extension', files:new Map(), folders:new Set() };
+let tabs = [], active = null, previewTab = null;
+const collapsed = new Set();
+let lastProblems = { errors:[], warnings:[] };
+
+function decodeText(u8){
+  let s = new TextDecoder('utf-8').decode(u8);
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);          /* הסרת BOM */
+  return s.replace(/\r\n/g, '\n');
+}
+function looksText(name, u8){
+  const e = ext(name);
+  if (e === 'svg') return true;
+  if (IMG_EXT.includes(e)) return false;
+  if (TEXT_EXT.includes(e)) return true;
+  if (['zip','png','jpg','jpeg','gif','webp','ico','woff','woff2','ttf','otf','mp3','mp4','wasm','pdf'].includes(e)) return false;
+  const n = Math.min(u8.length, 2048);
+  for (let i = 0; i < n; i++) if (u8[i] === 0) return false;
+  try { new TextDecoder('utf-8', { fatal:true }).decode(u8.subarray(0, n)); return true; } catch(e2){ return false; }
+}
+function addFile(path, content, opts = {}){
+  const isTxt = typeof content === 'string';
+  const f = { path, text:isTxt ? content : null, bytes:isTxt ? null : content,
+              binary:!isTxt, dirty:!!opts.dirty, w:0, h:0, url:null,
+              undo:[], redo:[], lastPush:0, lastText:isTxt ? content : '', sel:0, scroll:0 };
+  P.files.set(path, f);
+  let d = dir(path); while (d){ P.folders.add(d); d = dir(d); }
+  return f;
+}
+function fileSize(f){ return f.binary ? f.bytes.length : new TextEncoder().encode(f.text).length; }
+function objUrl(f){ if (!f.url) f.url = URL.createObjectURL(new Blob([f.bytes], { type:mimeOf(f.path) })); return f.url; }
+function dropUrl(f){ if (f.url){ URL.revokeObjectURL(f.url); f.url = null; } }
+function mimeOf(p){ const e = ext(p);
+  return ({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',
+           bmp:'image/bmp',ico:'image/x-icon',svg:'image/svg+xml'})[e] || 'application/octet-stream'; }
+
+/* ===================== תבנית ברירת המחדל ===================== */
+function makeIcon(size){
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d'), s = size, r = s * .22;
+  const g = x.createLinearGradient(0, 0, s, s); g.addColorStop(0, '#1177bb'); g.addColorStop(1, '#0a4d7a');
+  x.fillStyle = g; x.beginPath(); x.roundRect(0, 0, s, s, r); x.fill();
+  x.fillStyle = '#ffffff';
+  x.beginPath(); x.roundRect(s*.26, s*.26, s*.48, s*.48, s*.09); x.fill();
+  x.beginPath(); x.arc(s*.5, s*.26, s*.115, 0, 7); x.fill();
+  x.fillStyle = g; x.beginPath(); x.arc(s*.26, s*.5, s*.115, 0, 7); x.fill();
+  return c;
+}
+function canvasBytes(c){
+  const b64 = c.toDataURL('image/png').split(',')[1], bin = atob(b64);
+  const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+const DEFAULTS = {
+'manifest.json': `{
+  "manifest_version": 3,
+  "name": "My Extension",
+  "version": "1.0",
+  "description": "תיאור התוסף שלי",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "permissions": []
+}`,
+'background.js': `// קוד שרץ ברקע של התוסף (service worker).
+// שימו לב: אין כאן גישה ל-DOM של הדפים.
+
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("התוסף הותקן בהצלחה");
+});`,
+'content.js': `// קובץ זה רץ בתוך דפי האינטרנט שהמשתמש גולש בהם,
+// לפי ה-matches שמוגדר ב-manifest.json תחת content_scripts.
+
+console.log("content.js נטען בתוך הדף:", location.hostname);`,
+'popup.html': `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h3>התוסף שלי</h3>
+  <button id="go">לחצו כאן</button>
+  <p id="out"></p>
+  <script src="popup.js"><\/script>
+</body>
+</html>`,
+'popup.js': `// הלוגיקה של חלון הפופאפ
+
+document.getElementById("go").addEventListener("click", () => {
+  document.getElementById("out").textContent = "עובד!";
+});`,
+'popup.css': `body {
+  width: 250px;
+  padding: 12px;
+  font-family: Arial, sans-serif;
+}
+
+button {
+  padding: 6px 12px;
+  cursor: pointer;
+}`
+};
+function loadDefaults(){
+  P.files.clear(); P.folders.clear(); P.name = 'My Extension';
+  for (const [k, v] of Object.entries(DEFAULTS)) addFile(k, v);
+  P.folders.add('icons');
+  for (const s of [16, 48, 128]) addFile('icons/icon'+s+'.png', canvasBytes(makeIcon(s)));
+  tabs = []; active = null; previewTab = null; collapsed.clear();
+}
+
+/* ===================== אחסון (IndexedDB + localStorage) ===================== */
+const DB_NAME = 'chrome-ext-editor', STORE = 'state';
+let dbP = null;
+function db(){
+  if (dbP) return dbP;
+  dbP = new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }).catch(() => null);
+  return dbP;
+}
+async function idbSet(k, v){ const d = await db(); if (!d) return;
+  return new Promise(res => { const t = d.transaction(STORE, 'readwrite'); t.objectStore(STORE).put(v, k); t.oncomplete = res; t.onerror = res; }); }
+async function idbGet(k){ const d = await db(); if (!d) return null;
+  return new Promise(res => { const t = d.transaction(STORE, 'readonly'); const q = t.objectStore(STORE).get(k);
+    q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); }
+
+let saveTimer = null;
+function scheduleSave(){
+  setSaveState('שינויים לא נשמרו…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(persist, 700);
+}
+async function persist(){
+  const files = [];
+  for (const f of P.files.values())
+    files.push({ path:f.path, binary:f.binary, text:f.text, bytes:f.bytes, dirty:f.dirty });
+  await idbSet('project', { name:P.name, files, folders:[...P.folders],
+                            tabs, active, collapsed:[...collapsed], v:1 });
+  setSaveState('נשמר ל-IndexedDB');
+}
+function setSaveState(txt){ const el = $('st-save'); el.textContent = txt; el.style.opacity = '1';
+  clearTimeout(setSaveState._t); setSaveState._t = setTimeout(() => el.style.opacity = '.7', 1600); }
+
+async function restore(){
+  const s = await idbGet('project');
+  if (!s || !s.files || !s.files.length) return false;
+  P.files.clear(); P.folders.clear();
+  P.name = s.name || 'My Extension';
+  for (const r of s.files){
+    const f = addFile(r.path, r.binary ? new Uint8Array(r.bytes) : (r.text || ''));
+    f.dirty = !!r.dirty;
+  }
+  (s.folders || []).forEach(x => P.folders.add(x));
+  (s.collapsed || []).forEach(x => collapsed.add(x));
+  tabs = (s.tabs || []).filter(t => P.files.has(t));
+  active = P.files.has(s.active) ? s.active : (tabs[0] || null);
+  return true;
+}
+const prefs = {
+  get(k, d){ try { const v = localStorage.getItem('cee.'+k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem('cee.'+k, JSON.stringify(v)); } catch(e){} }
+};
+
+/* ===================== הדגשת תחביר ===================== */
+function build(defs){ return { re:new RegExp(defs.map(d => '('+d[1]+')').join('|'), 'gm'), names:defs.map(d => d[0]) }; }
+const STR = `"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'`;
+const GRAM = {
+  json: build([
+    ['t-key', `"(?:\\\\.|[^"\\\\])*"(?=\\s*:)`],
+    ['t-str', `"(?:\\\\.|[^"\\\\])*"`],
+    ['t-lit', `\\b(?:true|false|null)\\b`],
+    ['t-num', `-?\\b\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b`],
+    ['t-cmt', `//[^\\n]*`]
+  ]),
+  js: build([
+    ['t-cmt', `/\\*[\\s\\S]*?\\*/|//[^\\n]*`],
+    ['t-str', `${STR}|\`(?:\\\\.|[^\`\\\\])*\``],
+    ['t-kw',  `\\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|class|extends|super|this|typeof|instanceof|in|of|try|catch|finally|throw|async|await|yield|delete|void|export|import|from|default|static|get|set)\\b`],
+    ['t-lit', `\\b(?:true|false|null|undefined|NaN|Infinity)\\b`],
+    ['t-num', `\\b(?:0[xX][0-9a-fA-F]+|\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)\\b`],
+    ['t-fn',  `\\b[A-Za-z_$][\\w$]*(?=\\s*\\()`]
+  ]),
+  css: build([
+    ['t-cmt',  `/\\*[\\s\\S]*?\\*/`],
+    ['t-str',  STR],
+    ['t-at',   `@[\\w-]+`],
+    ['t-prop', `[-a-zA-Z]+(?=\\s*:)`],
+    ['t-num',  `#[0-9a-fA-F]{3,8}\\b|\\b\\d+(?:\\.\\d+)?(?:px|em|rem|%|vh|vw|s|ms|deg|fr|pt|ch)?\\b`],
+    ['t-lit',  `[.#][\\w-]+|::?[a-z-]+\\b|\\b(?:important)\\b`]
+  ]),
+  html: build([
+    ['t-cmt',  `&lt;!--[\\s\\S]*?--&gt;|<!--[\\s\\S]*?-->`],
+    ['t-kw',   `<!DOCTYPE[^>]*>`],
+    ['t-str',  STR],
+    ['t-tag',  `</?[A-Za-z][\\w:-]*|/?>`],
+    ['t-attr', `\\b[A-Za-z-]+(?==)`]
+  ])
+};
+function highlight(code, lang){
+  const g = GRAM[lang]; if (!g) return esc(code);
+  let out = '', last = 0, m; g.re.lastIndex = 0;
+  while ((m = g.re.exec(code)) !== null){
+    if (m[0] === ''){ g.re.lastIndex++; continue; }
+    out += esc(code.slice(last, m.index));
+    let cls = null;
+    for (let i = 1; i < m.length; i++) if (m[i] !== undefined){ cls = g.names[i-1]; break; }
+    out += '<span class="'+cls+'">'+esc(m[0])+'</span>';
+    last = m.index + m[0].length;
+  }
+  return out + esc(code.slice(last));
+}
+function langOf(p){ return LANG_OF[ext(p)] || null; }
+
+/* ===================== העורך ===================== */
+const ta = $('code'), hlCode = $('hl-code'), hlPre = $('hl'), gut = $('gutter-inner');
+let renderTimer = null;
+
+function paint(){
+  const f = P.files.get(active); if (!f || f.binary) return;
+  const t = ta.value;
+  hlCode.innerHTML = highlight(t, langOf(f.path)) + '\n';
+  const n = t.split('\n').length;
+  let g = ''; for (let i = 1; i <= n; i++) g += i + '\n';
+  gut.textContent = g;
+  syncScroll();
+}
+function syncScroll(){
+  hlPre.style.transform = `translate(${-ta.scrollLeft}px, ${-ta.scrollTop}px)`;
+  gut.style.transform   = `translateY(${-ta.scrollTop}px)`;
+  if (document.body.classList.contains('wrap-on')) hlPre.style.width = ta.clientWidth + 'px';
+  else hlPre.style.width = 'auto';
+}
+ta.addEventListener('scroll', syncScroll);
+
+function updatePos(){
+  const p = ta.selectionStart, upTo = ta.value.slice(0, p), lines = upTo.split('\n');
+  $('st-pos').textContent = `Ln ${lines.length}, Col ${lines[lines.length-1].length + 1}`;
+}
+function pushUndo(f, force){
+  const now = Date.now();
+  if (force || now - f.lastPush > 350){
+    f.undo.push({ text:f.lastText, sel:ta.selectionStart });
+    if (f.undo.length > 300) f.undo.shift();
+    f.redo.length = 0; f.lastPush = now;
+  }
+}
+ta.addEventListener('input', () => {
+  const f = P.files.get(active); if (!f || f.binary) return;
+  pushUndo(f);
+  f.text = ta.value; f.lastText = ta.value;
+  if (!f.dirty){ f.dirty = true; renderTree(); renderTabs(); }
+  clearTimeout(renderTimer); renderTimer = setTimeout(paint, 16);
+  if (f.path === 'manifest.json') syncNameFromManifest();
+  scheduleValidate(); scheduleSave(); updatePos();
+});
+ta.addEventListener('keyup', updatePos);
+ta.addEventListener('click', updatePos);
+ta.addEventListener('select', updatePos);
+
+function applyState(f, st){
+  f.lastText = st.text; f.text = st.text; ta.value = st.text;
+  ta.selectionStart = ta.selectionEnd = Math.min(st.sel, st.text.length);
+  paint(); updatePos(); f.dirty = true; renderTree(); renderTabs(); scheduleValidate(); scheduleSave();
+}
+function doUndo(){ const f = P.files.get(active); if (!f || f.binary || !f.undo.length) return;
+  f.redo.push({ text:ta.value, sel:ta.selectionStart }); applyState(f, f.undo.pop()); f.lastPush = 0; }
+function doRedo(){ const f = P.files.get(active); if (!f || f.binary || !f.redo.length) return;
+  f.undo.push({ text:ta.value, sel:ta.selectionStart }); applyState(f, f.redo.pop()); f.lastPush = 0; }
+
+function insert(text, selOffset){
+  const s = ta.selectionStart, e = ta.selectionEnd, f = P.files.get(active);
+  pushUndo(f, true);
+  ta.setRangeText(text, s, e, 'end');
+  if (selOffset !== undefined) ta.selectionStart = ta.selectionEnd = s + selOffset;
+  ta.dispatchEvent(new Event('input'));
+}
+const PAIRS = { '{':'}', '[':']', '(':')', '"':'"', "'":"'", '`':'`' };
+ta.addEventListener('keydown', e => {
+  const f = P.files.get(active); if (!f) return;
+  if (e.key === 'Tab'){
+    e.preventDefault();
+    const s = ta.selectionStart, en = ta.selectionEnd, v = ta.value;
+    if (s !== en || e.shiftKey){
+      const ls = v.lastIndexOf('\n', s-1)+1;
+      const block = v.slice(ls, en);
+      const nb = e.shiftKey ? block.replace(/^ {1,2}/gm, '') : block.replace(/^/gm, '  ');
+      pushUndo(f, true); ta.setRangeText(nb, ls, en, 'end');
+      ta.selectionStart = ls; ta.dispatchEvent(new Event('input'));
+    } else insert('  ');
+    return;
+  }
+  if (e.key === 'Enter'){
+    const v = ta.value, s = ta.selectionStart;
+    const ls = v.lastIndexOf('\n', s-1)+1;
+    const ind = (v.slice(ls, s).match(/^[ \t]*/) || [''])[0];
+    const prev = v[s-1], next = v[s];
+    if ('{[('.includes(prev) && next && ')]}'.includes(next)){
+      e.preventDefault(); insert('\n' + ind + '  ' + '\n' + ind, 1 + ind.length + 2); return;
+    }
+    if ('{[('.includes(prev)){ e.preventDefault(); insert('\n' + ind + '  '); return; }
+    if (ind){ e.preventDefault(); insert('\n' + ind); return; }
+    return;
+  }
+  if (PAIRS[e.key] && ta.selectionStart === ta.selectionEnd){
+    const next = ta.value[ta.selectionStart];
+    if (e.key === '"' || e.key === "'" || e.key === '`'){
+      if (next === e.key){ e.preventDefault(); ta.selectionStart = ta.selectionEnd = ta.selectionStart + 1; return; }
+      if (next && /[\w"'`]/.test(next)) return;
+    }
+    e.preventDefault(); insert(e.key + PAIRS[e.key], 1); return;
+  }
+  if (')]}'.includes(e.key) && ta.value[ta.selectionStart] === e.key && ta.selectionStart === ta.selectionEnd){
+    e.preventDefault(); ta.selectionStart = ta.selectionEnd = ta.selectionStart + 1; return;
+  }
+  if (e.key === 'Backspace' && ta.selectionStart === ta.selectionEnd){
+    const p = ta.value[ta.selectionStart-1], n = ta.value[ta.selectionStart];
+    if (p && PAIRS[p] === n){ e.preventDefault(); pushUndo(f, true);
+      ta.setRangeText('', ta.selectionStart-1, ta.selectionStart+1, 'end'); ta.dispatchEvent(new Event('input')); return; }
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); doUndo(); return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))){ e.preventDefault(); doRedo(); return; }
+});
+
+/* ===================== לשוניות ===================== */
+function openFile(path, permanent){
+  if (!P.files.has(path)) return;
+  if (active && active !== path){ const old = P.files.get(active);
+    if (old && !old.binary){ old.sel = ta.selectionStart; old.scroll = ta.scrollTop; } }
+  if (!tabs.includes(path)){
+    if (previewTab && !permanent && tabs.includes(previewTab)){
+      tabs[tabs.indexOf(previewTab)] = path;
+    } else tabs.push(path);
+    previewTab = permanent ? null : path;
+  } else if (permanent && previewTab === path) previewTab = null;
+  active = path;
+  showActive(); renderTabs(); renderTree(); scheduleSave();
+}
+function closeTab(path){
+  const i = tabs.indexOf(path); if (i < 0) return;
+  tabs.splice(i, 1);
+  if (previewTab === path) previewTab = null;
+  if (active === path) active = tabs[Math.min(i, tabs.length-1)] || null;
+  showActive(); renderTabs(); renderTree(); scheduleSave();
+}
+function renderTabs(){
+  const c = $('tabs'); c.innerHTML = '';
+  for (const p of tabs){
+    const f = P.files.get(p); if (!f) continue;
+    const el = document.createElement('div');
+    el.className = 'tab' + (p === active ? ' active' : '') + (f.dirty ? ' dirty' : '') + (p === previewTab ? ' preview' : '');
+    el.title = p; el.draggable = true; el.dataset.path = p;
+    el.innerHTML = `<span class="ic">${iconFor(p)}</span><span class="tab-name">${esc(base(p))}</span><span class="tab-close" title="סגירה">${f.dirty ? '●' : '✕'}</span>`;
+    el.onclick = ev => { if (ev.target.classList.contains('tab-close')) closeTab(p); else openFile(p, true); };
+    el.onmousedown = ev => { if (ev.button === 1){ ev.preventDefault(); closeTab(p); } };
+    el.oncontextmenu = ev => { ev.preventDefault(); showCtx(ev.clientX, ev.clientY, [
+      { k:'✕', t:'סגירה', fn:() => closeTab(p) },
+      { k:'⇥', t:'סגירת האחרים', fn:() => { tabs = [p]; active = p; previewTab = null; showActive(); renderTabs(); } },
+      { k:'⌫', t:'סגירת הכל', fn:() => { tabs = []; active = null; previewTab = null; showActive(); renderTabs(); } }
+    ]); };
+    el.ondragstart = ev => { ev.dataTransfer.setData('text/tab', p); el.classList.add('dragging'); };
+    el.ondragend = () => el.classList.remove('dragging');
+    el.ondragover = ev => { if (ev.dataTransfer.types.includes('text/tab')) ev.preventDefault(); };
+    el.ondrop = ev => { ev.preventDefault();
+      const src = ev.dataTransfer.getData('text/tab'); if (!src || src === p) return;
+      tabs.splice(tabs.indexOf(src), 1); tabs.splice(tabs.indexOf(p), 0, src); renderTabs(); };
+    c.appendChild(el);
+  }
+  const cur = c.querySelector('.tab.active'); if (cur) cur.scrollIntoView({ block:'nearest', inline:'nearest' });
+}
+function showActive(){
+  const cont = $('ed-container');
+  cont.querySelectorAll('.viewer,.welcome').forEach(n => n.remove());
+  const f = active ? P.files.get(active) : null;
+  const hide = v => { ta.style.display = v ? 'none' : ''; hlPre.style.display = v ? 'none' : ''; $('gutter').style.display = v ? 'none' : ''; };
+  if (!f){ hide(true); cont.appendChild(welcomeEl());
+    $('st-path').textContent = '—'; $('st-lang').textContent = '—'; $('st-pos').textContent = 'Ln 1, Col 1'; return; }
+  if (f.binary){ hide(true); cont.appendChild(viewerEl(f)); }
+  else {
+    hide(false);
+    ta.value = f.text; paint();
+    ta.selectionStart = ta.selectionEnd = Math.min(f.sel || 0, f.text.length);
+    ta.scrollTop = f.scroll || 0; syncScroll(); updatePos();
+  }
+  $('st-path').textContent = f.path;
+  $('st-lang').textContent = f.binary ? (ext(f.path).toUpperCase() || 'BIN') : (langOf(f.path) || 'Text').toUpperCase();
+}
+function welcomeEl(){
+  const d = document.createElement('div'); d.className = 'welcome';
+  d.innerHTML = `<h2>🧩 עורך תוספי כרום</h2>
+    <div class="row">
+      <button class="btn btn-primary" data-a="new">פרויקט חדש</button>
+      <button class="btn" data-a="open">פתיחת ZIP קיים</button>
+      <button class="btn" data-a="help">איך טוענים תוסף לכרום?</button>
+    </div>
+    <div class="keys">
+      <span class="kc"><kbd>Ctrl</kbd>+<kbd>S</kbd></span><span>שמירת הקובץ</span>
+      <span class="kc"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></span><span>הורדת ZIP</span>
+      <span class="kc"><kbd>Ctrl</kbd>+<kbd>P</kbd></span><span>חיפוש קובץ מהיר</span>
+      <span class="kc"><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>חיפוש בקובץ</span>
+    </div>
+    <div style="font-size:11px;opacity:.75;text-align:center;line-height:1.9">
+      רעיון: מיני האקר · פיתוח: צול גאה — TSOOLGEE.UK<br>הקבצים נשמרים בדפדפן שלכם בלבד ולא נשלחים לשום מקום.
+    </div>`;
+  d.querySelector('[data-a=new]').onclick = newProject;
+  d.querySelector('[data-a=open]').onclick = () => $('zip-input').click();
+  d.querySelector('[data-a=help]').onclick = showHelp;
+  return d;
+}
+function viewerEl(f){
+  const d = document.createElement('div'); d.className = 'viewer';
+  const img = isImg(f.path);
+  d.innerHTML = `${img ? `<div class="frame"><img src="${objUrl(f)}" alt=""></div>` : `<div style="font-size:46px">📦</div>`}
+    <div class="meta"><b>${esc(base(f.path))}</b><br>${img ? '<span class="num" id="v-dim">…</span> · ' : ''}<span class="num">${fmtSize(fileSize(f))}</span><br>
+    ${img ? 'קובץ תמונה — לא ניתן לעריכה כטקסט.' : 'קובץ בינארי — לא ניתן לעריכה כטקסט. התוכן יישמר בייצוא ללא שינוי.'}</div>
+    <div class="row">
+      ${img ? '<button class="btn btn-primary" data-a="rep">החלפת תמונה</button>' : ''}
+      <button class="btn" data-a="dl">הורדת הקובץ</button>
+    </div>`;
+  if (img){
+    const im = new Image();
+    im.onload = () => { f.w = im.naturalWidth; f.h = im.naturalHeight;
+      const el = d.querySelector('#v-dim'); if (el) el.textContent = f.w + '×' + f.h + 'px'; scheduleValidate(); };
+    im.src = objUrl(f);
+    d.querySelector('[data-a=rep]').onclick = () => replaceImage(f.path);
+  }
+  d.querySelector('[data-a=dl]').onclick = () => downloadFile(f.path);
+  return d;
+}
+
+/* ===================== עץ הקבצים ===================== */
+function iconFor(p){
+  if (P.folders.has(p)) return collapsed.has(p) ? '📁' : '📂';
+  const e = ext(p);
+  if (e === 'json' || e === 'webmanifest') return '🔧';
+  if (e === 'js' || e === 'mjs' || e === 'ts') return '📜';
+  if (e === 'css') return '🎨';
+  if (e === 'html' || e === 'htm') return '🌐';
+  if (IMG_EXT.includes(e)) return '🖼️';
+  if (e === 'md' || e === 'txt') return '📄';
+  return '📃';
+}
+function treeModel(){
+  const root = { name:'', path:'', dirs:new Map(), files:[] };
+  const ensure = d => { if (!d) return root;
+    let cur = root; let acc = '';
+    for (const part of d.split('/')){ acc = acc ? acc+'/'+part : part;
+      if (!cur.dirs.has(part)) cur.dirs.set(part, { name:part, path:acc, dirs:new Map(), files:[] });
+      cur = cur.dirs.get(part); }
+    return cur; };
+  for (const p of P.folders) ensure(p);
+  for (const p of P.files.keys()) ensure(dir(p)).files.push(p);
+  return root;
+}
+function renderTree(){
+  const c = $('tree'); c.innerHTML = '';
+  const root = treeModel();
+  if (!P.files.size && !P.folders.size){
+    c.innerHTML = '<div class="tree-empty">אין קבצים.<br>לחצו על ＋ או גררו קבצים לכאן.</div>';
+  } else walk(root, 0, c);
+  $('st-files').innerHTML = P.files.size + ' קבצים · <span class="num">' +
+    fmtSize([...P.files.values()].reduce((a, f) => a + fileSize(f), 0)) + '</span>';
+
+  function walk(node, depth, host){
+    const dirs = [...node.dirs.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const files = node.files.sort((a, b) => base(a).localeCompare(base(b)));
+    for (const d of dirs){
+      host.appendChild(row(d.path, true, depth));
+      if (!collapsed.has(d.path)) walk(d, depth+1, host);
+    }
+    for (const f of files) host.appendChild(row(f, false, depth));
+  }
+}
+function row(path, isDir, depth){
+  const el = document.createElement('div');
+  const f = isDir ? null : P.files.get(path);
+  el.className = 'tree-item' + (!isDir && path === active ? ' active' : '');
+  el.style.paddingLeft = (6 + depth*13) + 'px';
+  el.dataset.path = path; el.dataset.dir = isDir ? '1' : '';
+  el.draggable = true; el.title = path;
+  el.innerHTML = `<span class="tw">${isDir ? (collapsed.has(path) ? '▶' : '▼') : ''}</span>
+    <span class="ic">${iconFor(path)}</span><span class="nm">${esc(base(path))}${isDir ? '/' : ''}</span>
+    ${f && f.dirty ? '<span class="dot">•</span>' : ''}
+    <button class="more" title="אפשרויות">⋯</button>`;
+
+  el.onclick = ev => {
+    if (ev.target.closest('.more')) return;
+    if (isDir){ collapsed.has(path) ? collapsed.delete(path) : collapsed.add(path); renderTree(); scheduleSave(); }
+    else openFile(path, false);
+  };
+  el.ondblclick = ev => { if (!isDir && !ev.target.closest('.more')) openFile(path, true); };
+  el.querySelector('.more').onclick = ev => { ev.stopPropagation();
+    const r = ev.currentTarget.getBoundingClientRect(); menuFor(path, isDir, r.left, r.bottom+3); };
+  el.oncontextmenu = ev => { ev.preventDefault(); menuFor(path, isDir, ev.clientX, ev.clientY); };
+
+  el.ondragstart = ev => { ev.dataTransfer.setData('text/node', path); ev.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); };
+  el.ondragend  = () => { el.classList.remove('dragging'); document.querySelectorAll('.drop-target').forEach(n => n.classList.remove('drop-target')); };
+  el.ondragover = ev => { if (!isDir) return;
+    if (ev.dataTransfer.types.includes('text/node') || ev.dataTransfer.types.includes('Files')){
+      ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; el.classList.add('drop-target'); } };
+  el.ondragleave = () => el.classList.remove('drop-target');
+  el.ondrop = async ev => {
+    if (!isDir) return;
+    ev.preventDefault(); ev.stopPropagation(); el.classList.remove('drop-target');
+    const src = ev.dataTransfer.getData('text/node');
+    if (src) return moveNode(src, path);
+    if (ev.dataTransfer.files.length) return uploadFiles(ev.dataTransfer.files, path);
+  };
+  return el;
+}
+/* גרירה לשורש */
+$('tree').addEventListener('dragover', ev => {
+  if (ev.target.closest('.tree-item')) return;
+  if (ev.dataTransfer.types.includes('text/node')){ ev.preventDefault(); $('tree').classList.add('drop-root'); }
+});
+$('tree').addEventListener('dragleave', () => $('tree').classList.remove('drop-root'));
+$('tree').addEventListener('drop', ev => {
+  $('tree').classList.remove('drop-root');
+  if (ev.target.closest('.tree-item')) return;
+  const src = ev.dataTransfer.getData('text/node');
+  if (src){ ev.preventDefault(); moveNode(src, ''); }
+});
+$('tree').addEventListener('contextmenu', ev => {
+  if (ev.target.closest('.tree-item')) return;
+  ev.preventDefault(); menuFor('', true, ev.clientX, ev.clientY);
+});
+
+/* ===================== פעולות על קבצים ===================== */
+function nameError(name, folder, existingPath){
+  if (!name) return 'צריך להזין שם.';
+  if (/[\/\\]/.test(name)) return 'השם לא יכול להכיל / או \\.';
+  if (/[:*?"<>|]/.test(name)) return 'השם מכיל תו שאסור בוינדוס: : * ? " < > |';
+  if (name === '.' || name === '..') return 'שם לא חוקי.';
+  if (name.endsWith('.') || name.endsWith(' ')) return 'השם לא יכול להסתיים בנקודה או ברווח (וינדוס).';
+  if (WIN_BAD.test(name)) return 'זהו שם שמור בוינדוס ואי אפשר להשתמש בו.';
+  const p = join(folder, name);
+  if (p !== existingPath && (P.files.has(p) || P.folders.has(p))) return 'כבר קיים פה משהו בשם הזה.';
+  return null;
+}
+/* בדיקת תקינות תחבירית של חלק בודד בנתיב — בלי תלות בקבצים הקיימים */
+function partInvalid(name){
+  return /[\/\\:*?"<>|]/.test(name) || name === '.' || name === '..'
+      || name.endsWith('.') || name.endsWith(' ') || WIN_BAD.test(name);
+}
+function uniquePath(p){
+  if (!P.files.has(p) && !P.folders.has(p)) return p;
+  const d = dir(p), b = base(p), i = b.lastIndexOf('.');
+  const stem = i > 0 ? b.slice(0, i) : b, e = i > 0 ? b.slice(i) : '';
+  let n = 1, cand;
+  do { cand = join(d, `${stem}-${++n}${e}`); } while (P.files.has(cand) || P.folders.has(cand));
+  return cand;
+}
+async function newFile(folder){
+  const name = await promptDlg('קובץ חדש', 'שם הקובץ (כולל סיומת):', 'script.js', v => nameError(v.trim(), folder, null));
+  if (name === null) return;
+  const p = join(folder, name.trim());
+  addFile(p, '', { dirty:true });
+  renderTree(); openFile(p, true); toast('נוצר ' + p, 'ok'); scheduleValidate(); scheduleSave();
+}
+async function newFolder(folder){
+  const name = await promptDlg('תיקייה חדשה', 'שם התיקייה:', 'lib', v => nameError(v.trim(), folder, null));
+  if (name === null) return;
+  const p = join(folder, name.trim());
+  P.folders.add(p); collapsed.delete(p);
+  renderTree(); toast('נוצרה התיקייה ' + p, 'ok'); scheduleSave();
+}
+function startRename(path, isDir){
+  const el = $('tree').querySelector(`.tree-item[data-path="${CSS.escape(path)}"]`);
+  if (!el) return;
+  const nm = el.querySelector('.nm'), old = base(path), parent = dir(path);
+  const inp = document.createElement('input');
+  inp.className = 'rn'; inp.value = old; nm.replaceWith(inp);
+  const dot = old.lastIndexOf('.');
+  inp.focus(); inp.setSelectionRange(0, dot > 0 ? dot : old.length);
+  let done = false;
+  const finish = ok => {
+    if (done) return; done = true;
+    const v = inp.value.trim();
+    if (!ok || !v || v === old) return renderTree();
+    const err = nameError(v, parent, path);
+    if (err){ toast(err, 'err'); return renderTree(); }
+    renamePath(path, join(parent, v), isDir);
+  };
+  inp.onkeydown = e => { if (e.key === 'Enter'){ e.preventDefault(); finish(true); } if (e.key === 'Escape'){ e.preventDefault(); finish(false); } };
+  inp.onblur = () => finish(true);
+  inp.onclick = e => e.stopPropagation();
+}
+function renamePath(from, to, isDir){
+  const remap = p => p === from ? to : (isDir && p.startsWith(from + '/') ? to + p.slice(from.length) : null);
+  const moves = [];
+  for (const p of P.files.keys()){ const n = remap(p); if (n) moves.push([p, n]); }
+  for (const [a, b] of moves){ const f = P.files.get(a); P.files.delete(a); f.path = b; P.files.set(b, f); }
+  const folders = [...P.folders];
+  for (const p of folders){ const n = remap(p); if (n){ P.folders.delete(p); P.folders.add(n); if (collapsed.delete(p)) collapsed.add(n); } }
+  if (isDir) P.folders.add(to); else { let d = dir(to); while (d){ P.folders.add(d); d = dir(d); } }
+  tabs = tabs.map(p => remap(p) || p);
+  if (active) active = remap(active) || active;
+  if (previewTab) previewTab = remap(previewTab) || previewTab;
+  renderTree(); renderTabs(); showActive(); toast('שונה השם ל-' + base(to), 'ok'); scheduleValidate(); scheduleSave();
+}
+async function deleteNode(path, isDir){
+  if (isDir){
+    const inside = [...P.files.keys()].filter(p => p.startsWith(path + '/'));
+    const ok = await confirmDlg('מחיקת תיקייה',
+      `למחוק את התיקייה <b>${esc(path)}</b>${inside.length ? ` ואת ${inside.length} הקבצים שבתוכה` : ' (ריקה)'}?<br><span class="hint">אי אפשר לבטל את הפעולה.</span>`, true);
+    if (!ok) return;
+    inside.forEach(p => { dropUrl(P.files.get(p)); P.files.delete(p); });
+    [...P.folders].forEach(p => { if (p === path || p.startsWith(path + '/')) P.folders.delete(p); });
+    tabs = tabs.filter(p => P.files.has(p));
+  } else {
+    const ok = await confirmDlg('מחיקת קובץ', `למחוק את <b>${esc(path)}</b>?<br><span class="hint">אי אפשר לבטל את הפעולה.</span>`, true);
+    if (!ok) return;
+    dropUrl(P.files.get(path)); P.files.delete(path);
+    tabs = tabs.filter(p => p !== path);
+  }
+  if (!P.files.has(active)) active = tabs[tabs.length-1] || null;
+  renderTree(); renderTabs(); showActive(); toast('נמחק', 'ok'); scheduleValidate(); scheduleSave();
+}
+function duplicateFile(path){
+  const f = P.files.get(path), p = uniquePath(path);
+  addFile(p, f.binary ? f.bytes.slice() : f.text, { dirty:true });
+  renderTree(); openFile(p, true); toast('שוכפל ל-' + base(p), 'ok'); scheduleValidate(); scheduleSave();
+}
+function moveNode(src, destFolder){
+  if (src === destFolder) return;
+  const isDir = P.folders.has(src);
+  if (isDir && (destFolder === src || destFolder.startsWith(src + '/')))
+    return toast('אי אפשר להעביר תיקייה לתוך עצמה.', 'err');
+  if (dir(src) === destFolder) return;
+  const target = join(destFolder, base(src));
+  if (P.files.has(target) || P.folders.has(target)){
+    confirmDlg('שם קיים ביעד', `כבר קיים <b>${esc(base(src))}</b> בתיקיית היעד.<br>לשמור את שניהם עם שם חדש?`)
+      .then(ok => { if (ok) renamePath(src, uniquePath(target), isDir); });
+    return;
+  }
+  renamePath(src, target, isDir);
+}
+async function moveToDialog(path){
+  const isDir = P.folders.has(path);
+  const opts = ['', ...[...P.folders].sort()].filter(d => !isDir || (d !== path && !d.startsWith(path + '/')));
+  const sel = document.createElement('select');
+  opts.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d ? d + '/' : '(שורש הפרויקט)';
+    if (d === dir(path)) o.selected = true; sel.appendChild(o); });
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div>העברת <b>${esc(base(path))}</b> אל:</div>`;
+  wrap.appendChild(sel);
+  const v = await modal({ title:'העברה אל…', body:wrap,
+    buttons:[{ label:'העבר', cls:'btn-primary', value:() => sel.value }, { label:'ביטול', value:null }] });
+  if (v !== null && v !== undefined) moveNode(path, v);
+}
+function downloadFile(path){
+  const f = P.files.get(path);
+  const blob = f.binary ? new Blob([f.bytes], { type:mimeOf(path) })
+                        : new Blob([f.text], { type:'text/plain;charset=utf-8' });
+  saveBlob(blob, base(path));
+}
+function saveBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function replaceImage(path){
+  const inp = $('img-input'); inp.value = '';
+  inp.onchange = async () => {
+    const file = inp.files[0]; if (!file) return;
+    const f = P.files.get(path);
+    dropUrl(f);
+    f.bytes = new Uint8Array(await file.arrayBuffer()); f.binary = true; f.dirty = true; f.w = f.h = 0;
+    renderTree(); if (active === path) showActive();
+    toast('התמונה הוחלפה — <span class="num">' + fmtSize(f.bytes.length) + '</span>', 'ok'); scheduleValidate(); scheduleSave();
+  };
+  inp.click();
+}
+async function uploadFiles(fileList, folder){
+  const list = [...fileList];
+  if (list.length === 1 && await sniffZip(list[0])){
+    const go = await confirmDlg('זוהה קובץ ZIP', 'לייבא אותו כפרויקט לעריכה?<br><span class="hint">"לא" יעלה אותו כקובץ רגיל לתוך הפרויקט.</span>');
+    if (go) return importZipFile(list[0]);
+  }
+  let added = 0, skipped = 0;
+  for (const file of list){
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let p = join(folder, file.name.replace(/[\/\\]/g, '_'));
+    if (nameError(base(p), dir(p), null)){ skipped++; continue; }
+    if (P.files.has(p) || P.folders.has(p)) p = uniquePath(p);
+    addFile(p, looksText(file.name, buf) ? decodeText(buf) : buf, { dirty:true });
+    added++;
+  }
+  renderTree(); scheduleValidate(); scheduleSave();
+  toast(`הועלו ${added} קבצים${skipped ? ` · ${skipped} דולגו` : ''}`, added ? 'ok' : 'warn');
+}
+async function sniffZip(file){
+  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  return head[0] === 0x50 && head[1] === 0x4B && (head[2] === 3 || head[2] === 5 || head[2] === 7);
+}
+
+/* ===================== תפריט הקשר ===================== */
+function menuFor(path, isDir, x, y){
+  const items = [];
+  if (isDir){
+    items.push({ k:'🗎', t:'קובץ חדש כאן', fn:() => newFile(path) });
+    items.push({ k:'🗀', t:'תיקייה חדשה כאן', fn:() => newFolder(path) });
+    items.push({ k:'⬆', t:'העלאת קבצים לכאן', fn:() => pickUpload(path) });
+    if (path){
+      items.push({ sep:true });
+      items.push({ k:'✎', t:'שינוי שם', sc:'F2', fn:() => startRename(path, true) });
+      items.push({ k:'⇄', t:'העברה אל…', fn:() => moveToDialog(path) });
+      items.push({ sep:true });
+      items.push({ k:'🗑', t:'מחיקה', danger:true, sc:'Del', fn:() => deleteNode(path, true) });
+    }
+  } else {
+    items.push({ k:'↗', t:'פתיחה', fn:() => openFile(path, true) });
+    if (isImg(path)) items.push({ k:'🖼', t:'החלפת תמונה', fn:() => replaceImage(path) });
+    items.push({ k:'✎', t:'שינוי שם', sc:'F2', fn:() => startRename(path, false) });
+    items.push({ k:'⧉', t:'שכפול', fn:() => duplicateFile(path) });
+    items.push({ k:'⇄', t:'העברה אל…', fn:() => moveToDialog(path) });
+    items.push({ k:'⬇', t:'הורדת הקובץ', fn:() => downloadFile(path) });
+    items.push({ sep:true });
+    items.push({ k:'🗑', t:'מחיקה', danger:true, sc:'Del', fn:() => deleteNode(path, false) });
+  }
+  showCtx(x, y, items);
+}
+function showCtx(x, y, items){
+  const c = $('ctx'); c.innerHTML = '';
+  for (const it of items){
+    if (it.sep){ c.appendChild(document.createElement('hr')); continue; }
+    const b = document.createElement('button');
+    if (it.danger) b.className = 'danger';
+    b.innerHTML = `<span class="k">${it.k || ''}</span><span>${esc(it.t)}</span>${it.sc ? `<span class="sc">${it.sc}</span>` : ''}`;
+    b.onclick = () => { hideCtx(); it.fn(); };
+    c.appendChild(b);
+  }
+  c.classList.add('open');
+  const r = c.getBoundingClientRect();
+  c.style.left = Math.max(6, Math.min(x, innerWidth - r.width - 6)) + 'px';
+  c.style.top  = Math.max(6, Math.min(y, innerHeight - r.height - 6)) + 'px';
+}
+const hideCtx = () => $('ctx').classList.remove('open');
+document.addEventListener('mousedown', e => { if (!e.target.closest('.ctx')) hideCtx(); }, true);
+window.addEventListener('blur', hideCtx);
+window.addEventListener('resize', hideCtx);
+
+/* ===================== דיאלוגים / הודעות ===================== */
+function modal({ title, body, buttons, wide }){
+  return new Promise(res => {
+    const bd = $('backdrop');
+    bd.innerHTML = '';
+    const d = document.createElement('div'); d.className = 'dialog' + (wide ? ' wide' : '');
+    const h = document.createElement('h3'); h.textContent = title;
+    const b = document.createElement('div'); b.className = 'body';
+    if (typeof body === 'string') b.innerHTML = body; else b.appendChild(body);
+    const f = document.createElement('div'); f.className = 'foot';
+    let closed = false;
+    const done = v => { if (closed) return; closed = true; bd.classList.remove('open'); bd.innerHTML = ''; document.removeEventListener('keydown', onKey, true); res(v); };
+    for (const btn of buttons){
+      const el = document.createElement('button');
+      el.className = 'btn ' + (btn.cls || ''); el.textContent = btn.label;
+      el.onclick = () => { const v = typeof btn.value === 'function' ? btn.value() : btn.value; if (v !== undefined) done(v); };
+      f.appendChild(el);
+    }
+    const onKey = e => { if (e.key === 'Escape'){ e.stopPropagation(); done(null); } };
+    document.addEventListener('keydown', onKey, true);
+    bd.onmousedown = e => { if (e.target === bd) done(null); };
+    d.append(h, b, f); bd.appendChild(d); bd.classList.add('open');
+    const first = b.querySelector('input,select,textarea') || f.querySelector('button');
+    if (first) setTimeout(() => first.focus(), 30);
+    modal._done = done;
+  });
+}
+function confirmDlg(title, html, danger){
+  return modal({ title, body:`<div>${html}</div>`, buttons:[
+    { label:danger ? 'מחק' : 'אישור', cls:danger ? 'btn-danger' : 'btn-primary', value:true },
+    { label:'ביטול', value:false }] }).then(v => v === true);
+}
+function promptDlg(title, label, def, validate){
+  const w = document.createElement('div');
+  w.innerHTML = `<label>${esc(label)}</label>`;
+  const inp = document.createElement('input'); inp.type = 'text'; inp.value = def || '';
+  const err = document.createElement('div'); err.className = 'err';
+  w.append(inp, err);
+  const check = () => { const e = validate ? validate(inp.value) : null; err.textContent = e || ''; return !e; };
+  inp.oninput = check;
+  inp.onkeydown = e => { if (e.key === 'Enter'){ e.preventDefault(); if (check()) modal._done(inp.value); } };
+  setTimeout(() => { const d = (def || '').lastIndexOf('.'); inp.focus(); inp.setSelectionRange(0, d > 0 ? d : (def || '').length); }, 40);
+  return modal({ title, body:w, buttons:[
+    { label:'אישור', cls:'btn-primary', value:() => check() ? inp.value : undefined },
+    { label:'ביטול', value:null }] });
+}
+function toast(msg, kind){
+  const t = document.createElement('div'); t.className = 'toast ' + (kind || '');
+  t.innerHTML = msg; $('toasts').appendChild(t);
+  setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 320); }, 3200);
+}
+
+/* ===================== בדיקת תקינות ===================== */
+let vTimer = null;
+const scheduleValidate = () => { clearTimeout(vTimer); vTimer = setTimeout(validate, 400); };
+function lineOf(text, pos){ return text.slice(0, pos).split('\n').length; }
+
+function validate(){
+  const E = [], W = [];
+  const mf = P.files.get('manifest.json');
+  let man = null;
+  if (!mf) E.push({ msg:'חסר הקובץ manifest.json — בלעדיו כרום לא יטען את התוסף.' });
+  else if (mf.binary) E.push({ file:'manifest.json', msg:'manifest.json אינו קובץ טקסט.' });
+  else {
+    try { man = JSON.parse(mf.text); }
+    catch(e){
+      const m = /position (\d+)/.exec(e.message);
+      const ln = m ? lineOf(mf.text, +m[1]) : 1;
+      E.push({ file:'manifest.json', line:ln, msg:'manifest.json אינו JSON תקין — ' + e.message });
+    }
+  }
+  if (man && typeof man === 'object'){
+    const at = key => { if (!mf) return 1;
+      const i = mf.text.indexOf('"' + key + '"'); return i < 0 ? 1 : lineOf(mf.text, i); };
+    if (man.manifest_version === undefined) E.push({ file:'manifest.json', line:1, msg:'חסר השדה manifest_version (צריך להיות 3).' });
+    else if (man.manifest_version !== 3) W.push({ file:'manifest.json', line:at('manifest_version'), msg:'manifest_version הוא ' + man.manifest_version + '. כרום החדש עובד עם 3.' });
+    if (!man.name) E.push({ file:'manifest.json', line:1, msg:'חסר שם התוסף (השדה name).' });
+    if (!man.version) E.push({ file:'manifest.json', line:1, msg:'חסרה גרסה (השדה version).' });
+    else if (!/^\d+(\.\d+){0,3}$/.test(String(man.version)))
+      E.push({ file:'manifest.json', line:at('version'), msg:'version חייב להיות עד 4 מספרים מופרדים בנקודה — לדוגמה 1.0.3' });
+
+    const referenced = new Set();
+    const need = (p, where) => {
+      if (typeof p !== 'string' || !p || /^(https?:)?\/\//.test(p)) return;
+      const clean = p.replace(/^\.?\//, '');
+      referenced.add(clean);
+      if (!P.files.has(clean)) E.push({ file:'manifest.json', line:at(where), msg:`ה-manifest מפנה ל-"${clean}" אבל הקובץ לא קיים בפרויקט.` });
+    };
+    need(man.action?.default_popup, 'default_popup');
+    need(man.background?.service_worker, 'service_worker');
+    need(man.options_page, 'options_page');
+    need(man.options_ui?.page, 'options_ui');
+    for (const k of Object.keys(man.icons || {})) need(man.icons[k], 'icons');
+    for (const k of Object.keys(man.action?.default_icon || {})) need(man.action.default_icon[k], 'default_icon');
+    for (const cs of (man.content_scripts || [])){
+      (cs.js || []).forEach(p => need(p, 'content_scripts'));
+      (cs.css || []).forEach(p => need(p, 'content_scripts'));
+      if ((cs.matches || []).includes('<all_urls>'))
+        W.push({ file:'manifest.json', line:at('matches'), msg:'content_scripts מוגדר על &lt;all_urls&gt; — הקוד ירוץ בכל אתר שגולשים בו. מומלץ לצמצם ל-matches ספציפי.' });
+      if (!cs.matches || !cs.matches.length)
+        E.push({ file:'manifest.json', line:at('content_scripts'), msg:'ל-content_scripts חייב להיות matches עם לפחות ערך אחד.' });
+    }
+    for (const w of (man.web_accessible_resources || []))
+      (w.resources || []).forEach(p => { if (!p.includes('*')) need(p, 'web_accessible_resources'); });
+
+    /* התאמת מידות אייקונים */
+    for (const [k, v] of Object.entries(man.icons || {})){
+      const f = P.files.get(String(v).replace(/^\.?\//, ''));
+      if (f && f.w && f.w !== +k)
+        W.push({ file:f.path, msg:`האייקון מוגדר תחת "${k}" אבל המידות שלו הן ${f.w}×${f.h}.` });
+    }
+    /* קבצים יתומים */
+    const textBlob = [...P.files.values()].filter(f => !f.binary).map(f => f.text).join('\n');
+    for (const p of P.files.keys()){
+      if (p === 'manifest.json' || referenced.has(p)) continue;
+      if (textBlob.includes(base(p))) continue;
+      W.push({ file:p, msg:'אף קובץ לא מפנה אל ' + base(p) + ' — ייתכן שהוא מיותר.' });
+    }
+  }
+  /* JSON תקין בכל שאר קבצי ה-JSON */
+  for (const f of P.files.values()){
+    if (f.binary || f.path === 'manifest.json' || ext(f.path) !== 'json' || !f.text.trim()) continue;
+    try { JSON.parse(f.text); }
+    catch(e){ const m = /position (\d+)/.exec(e.message);
+      E.push({ file:f.path, line:m ? lineOf(f.text, +m[1]) : 1, msg:'JSON לא תקין — ' + e.message }); }
+  }
+  lastProblems = { errors:E, warnings:W };
+  renderProblems();
+  return E.length === 0;
+}
+function renderProblems(){
+  const { errors:E, warnings:W } = lastProblems;
+  $('st-prob').textContent = `${E.length} שגיאות · ${W.length} אזהרות`;
+  const be = $('badge-err'), bw = $('badge-warn');
+  be.hidden = !E.length; be.textContent = E.length;
+  bw.hidden = !W.length; bw.textContent = W.length;
+  const list = $('p-list'); list.innerHTML = '';
+  if (!E.length && !W.length){ list.innerHTML = '<div class="prob-ok">✓ הכל תקין. התוסף מוכן לייצוא ולטעינה בכרום.</div>'; return; }
+  for (const it of [...E.map(x => ({ ...x, t:'err' })), ...W.map(x => ({ ...x, t:'warn' }))]){
+    const d = document.createElement('div'); d.className = 'prob ' + it.t;
+    d.innerHTML = `<span class="k">${it.t === 'err' ? '✖' : '⚠'}</span><span class="msg">${it.msg}</span>` +
+                  (it.file ? `<span class="loc">${esc(it.file)}${it.line ? ':' + it.line : ''}</span>` : '');
+    if (it.file) d.onclick = () => { openFile(it.file, true); if (it.line) gotoLine(it.line); };
+    list.appendChild(d);
+  }
+}
+function gotoLine(n){
+  const f = P.files.get(active); if (!f || f.binary) return;
+  const lines = ta.value.split('\n');
+  let pos = 0; for (let i = 0; i < Math.min(n-1, lines.length); i++) pos += lines[i].length + 1;
+  ta.focus(); ta.selectionStart = ta.selectionEnd = pos;
+  const lh = 21; ta.scrollTop = Math.max(0, (n-4) * lh); syncScroll(); updatePos();
+}
+$('btn-check').onclick = $('st-prob').onclick = () => { validate(); $('problems').classList.toggle('open'); };
+$('p-close').onclick = () => $('problems').classList.remove('open');
+
+/* ===================== ייבוא / ייצוא ZIP ===================== */
+async function importZipFile(file){
+  try {
+    setSaveState('טוען ZIP…');
+    const entries = await zipRead(await file.arrayBuffer());
+    let names = entries.map(e => e.name).filter(n => !JUNK.some(r => r.test(n)));
+    if (!names.length) throw new Error('לא נמצא בקובץ שום דבר לטעון.');
+
+    /* הסרת תיקיית שורש עוטפת יחידה */
+    const tops = new Set(names.map(n => n.split('/')[0]));
+    let strip = '';
+    if (tops.size === 1 && names.some(n => n.includes('/'))){
+      const top = [...tops][0];
+      if (!names.includes(top)) strip = top + '/';
+    }
+    const ok = await confirmDlg('ייבוא ZIP',
+      `לטעון את <b>${esc(file.name)}</b> לעריכה?<br><span class="hint">הפרויקט הנוכחי יוחלף. אפשר לשמור אותו קודם בעזרת "הורדת ZIP".</span>`);
+    if (!ok){ setSaveState('בוטל'); return; }
+
+    const nf = new Map(), nfold = new Set();
+    let loaded = 0, skipped = [];
+    for (const e of entries){
+      if (JUNK.some(r => r.test(e.name))) continue;
+      let n = e.name;
+      if (strip && n.startsWith(strip)) n = n.slice(strip.length);
+      if (!n) continue;
+      if (e.folder || n.endsWith('/')){ const c = n.replace(/\/$/, ''); if (c) nfold.add(c); continue; }
+      if (n.split('/').some(part => !part || partInvalid(part))){ skipped.push(n); continue; }
+      const isTxt = looksText(n, e.data);
+      nf.set(n, { text:isTxt ? decodeText(e.data) : null, bytes:isTxt ? null : e.data, binary:!isTxt });
+      loaded++;
+    }
+    if (!loaded && !nfold.size) throw new Error('לא נמצאו קבצים בתוך ה-ZIP.');
+
+    P.files.forEach(dropUrl);
+    P.files.clear(); P.folders.clear(); collapsed.clear(); tabs = []; active = null; previewTab = null;
+    nfold.forEach(d => P.folders.add(d));
+    for (const [p, v] of nf) addFile(p, v.binary ? v.bytes : v.text);
+    P.name = file.name.replace(/\.[^.]*$/, '') || 'My Extension';
+    syncNameFromManifest(true);
+    if (P.files.has('manifest.json')) openFile('manifest.json', true);
+    else { const first = [...P.files.keys()].find(p => !P.files.get(p).binary); if (first) openFile(first, true); }
+    renderTree(); renderTabs(); showActive(); validate(); persist();
+    toast(`נטענו ${loaded} קבצים${strip ? ' · הוסרה תיקיית השורש "' + strip.slice(0,-1) + '"' : ''}${skipped.length ? ' · דולגו ' + skipped.length : ''}`, 'ok');
+  } catch(e){
+    setSaveState('מוכן');
+    modal({ title:'הייבוא נכשל', body:`<div>${esc(e.message)}</div><div class="hint" style="margin-top:10px">הפרויקט הקיים נשאר כמו שהיה.</div>`,
+            buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
+  }
+}
+function safeName(s){ return (s || '').replace(/[\\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 60) || 'extension'; }
+async function exportZip(){
+  if (!P.files.size) return toast('אין מה לייצא — הפרויקט ריק.', 'warn');
+  validate();
+  if (lastProblems.errors.length){
+    $('problems').classList.add('open');
+    const go = await confirmDlg('נמצאו שגיאות',
+      `יש ${lastProblems.errors.length} שגיאות שעלולות למנוע מכרום לטעון את התוסף.<br><span class="hint">אפשר לייצא בכל זאת.</span>`);
+    if (!go) return;
+  }
+  setSaveState('אורז ZIP…');
+  const enc = new TextEncoder(), entries = [];
+  const dirsWithFiles = new Set();
+  for (const p of P.files.keys()){ let d = dir(p); while (d){ dirsWithFiles.add(d); d = dir(d); } }
+  for (const d of [...P.folders].sort()) if (!dirsWithFiles.has(d)) entries.push({ name:d + '/', folder:true });
+  for (const p of [...P.files.keys()].sort()){
+    const f = P.files.get(p);
+    entries.push({ name:p, data:f.binary ? f.bytes : enc.encode(f.text) });   /* UTF-8 ללא BOM */
+  }
+  try {
+    const blob = await zipWrite(entries);
+    saveBlob(blob, safeName(P.name) + '.zip');
+    P.files.forEach(f => f.dirty = false);
+    renderTree(); renderTabs();
+    toast(`יוצא <b class="num">${esc(safeName(P.name))}.zip</b> · ${entries.length} רשומות · <span class="num">${fmtSize(blob.size)}</span>`, 'ok');
+    setSaveState('נשמר ל-IndexedDB'); persist();
+  } catch(e){
+    setSaveState('מוכן');
+    modal({ title:'הייצוא נכשל', body:`<div>${esc(e.message)}</div>
+      <div class="hint" style="margin-top:10px">אם ההורדה נחסמת (סינון רשת), אפשר להוריד כל קובץ בנפרד דרך תפריט ⋯ שליד הקובץ.</div>`,
+      buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
+  }
+}
+
+/* ===================== שם התוסף ↔ manifest ===================== */
+let nameGuard = false;
+function syncNameFromManifest(silent){
+  const f = P.files.get('manifest.json'); if (!f || f.binary) return;
+  try { const m = JSON.parse(f.text);
+    if (m && typeof m.name === 'string' && m.name !== P.name){ P.name = m.name; nameGuard = true; $('ext-name').value = m.name; nameGuard = false; }
+  } catch(e){ if (!silent) {} }
+}
+$('ext-name').addEventListener('input', () => {
+  if (nameGuard) return;
+  P.name = $('ext-name').value;
+  const f = P.files.get('manifest.json'); if (!f || f.binary) return scheduleSave();
+  try {
+    const m = JSON.parse(f.text);
+    m.name = P.name;
+    const next = JSON.stringify(m, null, 2);
+    f.text = next; f.lastText = next; f.dirty = true;
+    if (active === 'manifest.json'){ const s = ta.selectionStart; ta.value = next; ta.selectionStart = ta.selectionEnd = Math.min(s, next.length); paint(); }
+    renderTree(); renderTabs(); scheduleValidate();
+  } catch(e){ /* manifest לא תקין — לא נוגעים בו */ }
+  scheduleSave();
+});
+
+/* ===================== חיפוש והחלפה ===================== */
+let hits = [], hitIdx = -1;
+function runFind(){
+  const q = $('f-find').value, f = P.files.get(active);
+  hits = []; hitIdx = -1;
+  if (q && f && !f.binary){
+    const t = ta.value.toLowerCase(), qq = q.toLowerCase();
+    let i = t.indexOf(qq);
+    while (i >= 0){ hits.push(i); i = t.indexOf(qq, i + Math.max(1, qq.length)); }
+  }
+  $('f-count').textContent = hits.length ? `1 / ${hits.length}` : '0 / 0';
+  if (hits.length){ hitIdx = 0; focusHit(); }
+}
+function focusHit(){
+  const q = $('f-find').value;
+  if (!hits.length) return;
+  hitIdx = (hitIdx + hits.length) % hits.length;
+  const p = hits[hitIdx];
+  ta.focus(); ta.setSelectionRange(p, p + q.length);
+  const line = ta.value.slice(0, p).split('\n').length;
+  ta.scrollTop = Math.max(0, (line - 6) * 21); syncScroll(); updatePos();
+  $('f-count').textContent = `${hitIdx+1} / ${hits.length}`;
+}
+function openFind(withReplace){
+  const f = P.files.get(active); if (!f || f.binary) return toast('החיפוש עובד רק בקבצי טקסט.', 'warn');
+  $('findbar').classList.add('open');
+  $('f-rep-line').style.display = withReplace ? 'flex' : 'none';
+  const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+  if (sel && !sel.includes('\n')) $('f-find').value = sel;
+  $('f-find').focus(); $('f-find').select(); runFind();
+}
+$('f-find').addEventListener('input', runFind);
+$('f-find').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); hitIdx += e.shiftKey ? -1 : 1; focusHit(); }
+  if (e.key === 'Escape'){ e.preventDefault(); closeFind(); }
+});
+$('f-next').onclick = () => { hitIdx++; focusHit(); };
+$('f-prev').onclick = () => { hitIdx--; focusHit(); };
+$('f-close').onclick = closeFind;
+function closeFind(){ $('findbar').classList.remove('open'); ta.focus(); }
+$('f-rep1').onclick = () => {
+  if (hitIdx < 0 || !hits.length) return;
+  const f = P.files.get(active); pushUndo(f, true);
+  ta.setRangeText($('f-replace').value, hits[hitIdx], hits[hitIdx] + $('f-find').value.length, 'end');
+  ta.dispatchEvent(new Event('input')); runFind();
+};
+$('f-repall').onclick = () => {
+  const q = $('f-find').value; if (!q) return;
+  const f = P.files.get(active); pushUndo(f, true);
+  const parts = ta.value.split(q), n = parts.length - 1;
+  ta.value = parts.join($('f-replace').value);
+  ta.dispatchEvent(new Event('input')); runFind();
+  toast(`הוחלפו ${n} מופעים`, n ? 'ok' : 'warn');
+};
+
+/* ===================== חיפוש קובץ מהיר ===================== */
+let qoSel = 0, qoItems = [];
+function openQO(){
+  const q = $('qo'); q.classList.add('open'); $('qo-in').value = ''; fillQO(); $('qo-in').focus();
+}
+function closeQO(){ $('qo').classList.remove('open'); }
+function fillQO(){
+  const term = $('qo-in').value.toLowerCase();
+  qoItems = [...P.files.keys()].filter(p => p.toLowerCase().includes(term)).slice(0, 60);
+  qoSel = 0;
+  const l = $('qo-list'); l.innerHTML = '';
+  qoItems.forEach((p, i) => {
+    const d = document.createElement('div'); d.className = 'qi' + (i === qoSel ? ' sel' : '');
+    d.innerHTML = `<span>${iconFor(p)}</span><span>${esc(base(p))}</span><span class="p">${esc(dir(p))}</span>`;
+    d.onclick = () => { closeQO(); openFile(p, true); };
+    l.appendChild(d);
+  });
+  if (!qoItems.length) l.innerHTML = '<div class="qi" style="opacity:.6">לא נמצאו קבצים</div>';
+}
+$('qo-in').addEventListener('input', fillQO);
+$('qo-in').addEventListener('keydown', e => {
+  if (e.key === 'Escape') return closeQO();
+  if (e.key === 'Enter'){ e.preventDefault(); if (qoItems[qoSel]){ closeQO(); openFile(qoItems[qoSel], true); } return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault();
+    qoSel = (qoSel + (e.key === 'ArrowDown' ? 1 : -1) + qoItems.length) % Math.max(1, qoItems.length);
+    [...$('qo-list').children].forEach((c, i) => c.classList.toggle('sel', i === qoSel));
+    $('qo-list').children[qoSel]?.scrollIntoView({ block:'nearest' });
+  }
+});
+document.addEventListener('mousedown', e => { if ($('qo').classList.contains('open') && !e.target.closest('.qo')) closeQO(); });
+
+/* ===================== עזרה ===================== */
+function showHelp(){
+  modal({ wide:true, title:'עזרה ואודות', body:`
+    <h4>מה זה?</h4>
+    <div>עורך שיוצר ועורך תוספי כרום ישירות בדפדפן, בלי להתקין כלום. כל הקבצים נשארים במחשב שלכם — שום דבר לא נשלח לשום שרת.</div>
+    <h4>איך טוענים את התוסף בכרום?</h4>
+    <ol>
+      <li>לוחצים <b>הורדת ZIP</b> ומחלצים את הקובץ (קליק ימני ← "Extract All").</li>
+      <li>בכרום, בשורת הכתובת: <code>chrome://extensions</code></li>
+      <li>מפעילים את <b>מצב מפתח</b> (Developer mode) בפינה.</li>
+      <li>לוחצים <b>טען פריט לא ארוז</b> (Load unpacked) ובוחרים את התיקייה שחולצה.</li>
+      <li>אחרי כל שינוי — חוזרים לדף ולוחצים על כפתור הרענון בכרטיסיית התוסף.</li>
+    </ol>
+    <h4>איך מחליפים אייקון?</h4>
+    <div>פותחים את קובץ האייקון בעץ ולוחצים <b>החלפת תמונה</b>, או גוררים תמונה חדשה לתוך התיקייה <code>icons</code>. אפשר גם להעתיק תמונה וללחוץ <kbd>Ctrl</kbd>+<kbd>V</kbd>.</div>
+    <h4>איפה נשמרת העבודה?</h4>
+    <div>אוטומטית ב-IndexedDB של הדפדפן, אז רענון או סגירה לא מאבדים כלום. זה מקומי לדפדפן ולמחשב הזה — לגיבוי אמיתי או להעברה למחשב אחר השתמשו ב<b>הורדת ZIP</b>.</div>
+    <h4>קיצורי מקלדת</h4>
+    <div style="font-family:var(--mono);font-size:12px;line-height:2;direction:ltr;text-align:left">
+      Ctrl+S שמירה · Ctrl+Shift+S ייצוא ZIP · Ctrl+O פתיחת ZIP · Ctrl+N קובץ חדש<br>
+      Ctrl+F חיפוש · Ctrl+H החלפה · Ctrl+P חיפוש קובץ · Ctrl+W סגירת לשונית<br>
+      Ctrl+B סרגל צד · Ctrl+Z / Ctrl+Y ביטול וחזרה · F2 שינוי שם · Del מחיקה
+    </div>
+    <div class="credit-box">
+      רעיון מקורי: <b>מיני האקר</b> — <a href="https://mitmachim.top/post/1239410" target="_blank" rel="noopener">mitmachim.top/post/1239410</a><br>
+      פיתוח ויצירה: <b>צול גאה</b> — <a href="https://TSOOLGEE.UK" target="_blank" rel="noopener">TSOOLGEE.UK</a>
+    </div>`,
+    buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
+}
+
+/* ===================== פרויקט חדש ===================== */
+function loadEmpty(){
+  P.files.clear(); P.folders.clear(); P.name = 'My Extension';
+  tabs = []; active = null; previewTab = null; collapsed.clear();
+}
+async function newProject(){
+  const warn = P.files.size
+    ? '<div class="hint" style="margin-bottom:14px">⚠ הפרויקט הנוכחי יימחק. אפשר לשמור אותו קודם בעזרת "הורדת ZIP".</div>'
+    : '';
+  const kind = await modal({ title:'פרויקט חדש', body:`${warn}
+    <div class="choice"><b>🧩 תבנית מלאה</b>
+      <div>manifest תקין, שישה קבצי בסיס עם קוד התחלתי, ושלושה אייקונים.
+      אפשר לייצא ולטעון בכרום מיד, ואז לשנות.</div></div>
+    <div class="choice"><b>📄 פרויקט ריק</b>
+      <div>בלי שום קובץ. מתאים למי שבונה מאפס, או מדביק קבצים מבינה מלאכותית.
+      שימו לב: בלי <code>manifest.json</code> כרום לא יטען את התוסף.</div></div>`,
+    buttons:[
+      { label:'תבנית מלאה', cls:'btn-primary', value:'full' },
+      { label:'פרויקט ריק', value:'empty' },
+      { label:'ביטול', value:null }
+    ]});
+  if (!kind) return;
+  P.files.forEach(dropUrl);
+  if (kind === 'full') loadDefaults(); else loadEmpty();
+  nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
+  renderTree();
+  if (kind === 'full') openFile('manifest.json', true);
+  renderTabs(); showActive(); validate(); persist();
+  toast(kind === 'full' ? 'נוצר פרויקט חדש מתבנית מלאה' : 'נוצר פרויקט ריק — הוסיפו קבצים מהעץ', 'ok');
+}
+
+/* ===================== חיבורי ממשק ===================== */
+$('btn-new').onclick = newProject;
+$('btn-open').onclick = () => $('zip-input').click();
+$('btn-export').onclick = exportZip;
+$('btn-help').onclick = showHelp;
+$('t-newfile').onclick = () => newFile(currentFolder());
+$('t-newfolder').onclick = () => newFolder(currentFolder());
+$('t-upload').onclick = () => pickUpload(currentFolder());
+$('t-collapse').onclick = () => { P.folders.forEach(f => collapsed.add(f)); renderTree(); scheduleSave(); };
+function currentFolder(){ return active ? dir(active) : ''; }
+function pickUpload(folder){
+  const inp = $('file-input'); inp.value = '';
+  inp.onchange = () => { if (inp.files.length) uploadFiles(inp.files, folder); };
+  inp.click();
+}
+$('zip-input').onchange = e => { const f = e.target.files[0]; if (f) importZipFile(f); e.target.value = ''; };
+
+/* ערכת נושא */
+const htmlEl = document.documentElement;
+function setTheme(t){ htmlEl.setAttribute('data-theme', t); $('theme-toggle').textContent = t === 'dark' ? '🌙' : '☀️'; prefs.set('theme', t); }
+$('theme-toggle').onclick = () => setTheme(htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+
+/* גלישת שורות */
+function setWrap(on){ document.body.classList.toggle('wrap-on', on); ta.wrap = on ? 'soft' : 'off';
+  $('st-wrap').textContent = 'Wrap: ' + (on ? 'on' : 'off'); prefs.set('wrap', on); syncScroll(); }
+$('st-wrap').onclick = () => setWrap(!document.body.classList.contains('wrap-on'));
+
+/* סרגל צד — שינוי רוחב */
+(() => {
+  const r = $('resizer'), sb = $('sidebar');
+  let dragging = false;
+  r.onmousedown = e => { dragging = true; r.classList.add('on'); e.preventDefault(); document.body.style.cursor = 'col-resize'; };
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.min(520, Math.max(150, innerWidth - e.clientX));
+    sb.style.width = w + 'px'; prefs.set('sbw', w);
+  });
+  document.addEventListener('mouseup', () => { if (!dragging) return; dragging = false; r.classList.remove('on'); document.body.style.cursor = ''; });
+})();
+
+/* גרירת קבצים מהמערכת */
+let dragDepth = 0;
+window.addEventListener('dragenter', e => {
+  if (!e.dataTransfer.types.includes('Files')) return;
+  if (++dragDepth === 1 && !e.target.closest('.file-tree')) $('dropzone').classList.add('on');
+});
+window.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); });
+window.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth = 0; $('dropzone').classList.remove('on'); } });
+window.addEventListener('drop', async e => {
+  dragDepth = 0; $('dropzone').classList.remove('on');
+  if (!e.dataTransfer.files.length) return;
+  if (e.target.closest('.tree-item[data-dir="1"]')) return;   /* טופל בשורת העץ */
+  e.preventDefault();
+  await uploadFiles(e.dataTransfer.files, '');
+});
+
+/* הדבקת תמונה מהלוח */
+document.addEventListener('paste', async e => {
+  if (document.activeElement === ta || e.target.matches('input,textarea')) return;
+  const items = [...(e.clipboardData?.items || [])].filter(i => i.type.startsWith('image/'));
+  if (!items.length) return;
+  e.preventDefault();
+  const blob = items[0].getAsFile(); if (!blob) return;
+  const folder = currentFolder();
+  const p = uniquePath(join(folder, 'image-' + Date.now() + '.' + (blob.type.split('/')[1] || 'png')));
+  addFile(p, new Uint8Array(await blob.arrayBuffer()), { dirty:true });
+  renderTree(); openFile(p, true); toast('התמונה הודבקה כ-' + base(p), 'ok'); scheduleSave();
+});
+
+/* קיצורי מקלדת גלובליים */
+document.addEventListener('keydown', e => {
+  const ctrl = e.ctrlKey || e.metaKey;
+  const inDialog = $('backdrop').classList.contains('open') || $('qo').classList.contains('open');
+  const k = e.key.toLowerCase();
+  if (ctrl && k === 's' && !e.shiftKey){ e.preventDefault(); saveActive(); return; }
+  if (ctrl && k === 's' && e.shiftKey){ e.preventDefault(); exportZip(); return; }
+  if (ctrl && k === 'o'){ e.preventDefault(); $('zip-input').click(); return; }
+  if (inDialog) return;
+  if (ctrl && k === 'n'){ e.preventDefault(); newFile(currentFolder()); return; }
+  if (ctrl && k === 'p'){ e.preventDefault(); openQO(); return; }
+  if (ctrl && k === 'f'){ e.preventDefault(); openFind(false); return; }
+  if (ctrl && k === 'h'){ e.preventDefault(); openFind(true); return; }
+  if (ctrl && k === 'b'){ e.preventDefault(); document.body.classList.toggle('sb-collapsed'); prefs.set('sbc', document.body.classList.contains('sb-collapsed')); return; }
+  if (ctrl && k === 'w'){ e.preventDefault(); if (active) closeTab(active); return; }
+  if (ctrl && e.key === 'Tab'){ e.preventDefault(); if (tabs.length > 1){ const i = tabs.indexOf(active); openFile(tabs[(i+1) % tabs.length], true); } return; }
+  if (e.key === 'Escape'){ if ($('findbar').classList.contains('open')) closeFind(); hideCtx(); return; }
+  if (document.activeElement === ta || e.target.matches('input,textarea,select')) return;
+  if (e.key === 'F2' && active){ e.preventDefault(); startRename(active, false); return; }
+  if (e.key === 'Delete' && active){ e.preventDefault(); deleteNode(active, false); return; }
+});
+function saveActive(){
+  const f = active && P.files.get(active);
+  if (!f){ persist(); return toast('נשמר', 'ok'); }
+  if (!f.binary) f.text = ta.value;
+  f.dirty = false; renderTree(); renderTabs(); validate(); persist();
+  toast('נשמר: ' + base(f.path), 'ok');
+}
+window.addEventListener('beforeunload', e => {
+  if ([...P.files.values()].some(f => f.dirty)){ e.preventDefault(); e.returnValue = ''; }
+});
+window.addEventListener('resize', syncScroll);
+
+/* ===================== אתחול ===================== */
+(async function init(){
+  setTheme(prefs.get('theme', 'dark'));
+  setWrap(prefs.get('wrap', false));
+  const w = prefs.get('sbw', 260); $('sidebar').style.width = w + 'px';
+  if (prefs.get('sbc', false)) document.body.classList.add('sb-collapsed');
+
+  let restored = false;
+  try { restored = await restore(); } catch(e){ restored = false; }
+  if (!restored){ loadDefaults(); tabs = ['manifest.json']; active = 'manifest.json'; }
+  nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
+  syncNameFromManifest(true);
+  renderTree(); renderTabs(); showActive(); validate();
+  setSaveState(restored ? 'שוחזר מ-IndexedDB' : 'מוכן');
+  if (restored) toast('הפרויקט שוחזר מהדפדפן', 'ok');
+  if (typeof CompressionStream === 'undefined')
+    toast('הדפדפן לא תומך בדחיסה — קובץ ה-ZIP ייווצר ללא דחיסה (עדיין תקין לחלוטין).', 'warn');
+})();
+</script>
+</body>
+</html>
