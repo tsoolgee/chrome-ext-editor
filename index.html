@@ -200,9 +200,22 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
 .dialog h4{margin:14px 0 4px;font-size:13.5px;color:var(--text-main)}
 .dialog .credit-box{background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--r-lg);padding:12px 14px;margin-top:12px;line-height:2}
 .dialog .credit-box a{color:var(--accent-color)}
-.dialog .choice{background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--r-lg);padding:11px 14px;margin-bottom:10px}
-.dialog .choice b{display:block;margin-bottom:3px;font-size:13.5px}
+.dialog .choice{display:block;width:100%;text-align:right;font:inherit;color:inherit;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--r-lg);padding:13px 15px;margin-bottom:10px;cursor:pointer;transition:background .14s,border-color .14s,transform .1s}
+.dialog .choice:hover{background:var(--bg-hover);border-color:var(--accent-hover)}
+.dialog .choice:active{transform:translateY(1px)}
+.dialog .choice:focus-visible{border-color:var(--accent-hover);outline:2px solid var(--accent-hover);outline-offset:1px}
+.dialog .choice b{display:block;margin-bottom:4px;font-size:14px}
 .dialog .choice div{color:var(--text-muted);font-size:12.5px;line-height:1.7}
+.dialog .choice .files{font-family:var(--mono);font-size:11.5px;color:var(--text-muted);margin-top:7px;direction:ltr;text-align:left;opacity:.85;word-break:break-word}
+.plist{display:flex;flex-direction:column;gap:6px}
+.prow{display:grid;grid-template-columns:14px 1fr auto auto;align-items:center;gap:10px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--r-lg);padding:9px 12px;transition:background .14s,border-color .14s}
+.prow:hover{background:var(--bg-hover)}
+.prow.cur{border-color:var(--accent-color)}
+.prow .mark{color:var(--accent-color);font-size:15px;line-height:1}
+.prow .pn{font-weight:600;font-size:13.5px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .pm{color:var(--text-muted);font-size:11.5px;cursor:pointer;white-space:nowrap}
+.prow.cur .pn,.prow.cur .pm{cursor:default}
+.prow .pa{display:flex;gap:2px}
 
 /* quick open */
 .qo{position:fixed;top:70px;left:50%;transform:translateX(-50%);width:min(520px,92vw);background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--r-lg);box-shadow:var(--shadow);z-index:1100;display:none;overflow:hidden}
@@ -241,6 +254,7 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
   </div>
   <div class="actions-section">
     <button class="btn btn-icon" id="theme-toggle" title="מצב בהיר / כהה">🌙</button>
+    <button class="btn" id="btn-projects" title="הפרויקטים שלי">📁 פרויקטים</button>
     <button class="btn" id="btn-new" title="פרויקט חדש">חדש</button>
     <button class="btn" id="btn-open" title="פתיחת ZIP (Ctrl+O)">פתיחת ZIP</button>
     <button class="btn btn-primary" id="btn-export" title="הורדת ZIP (Ctrl+Shift+S)">הורדת ZIP</button>
@@ -439,7 +453,7 @@ async function zipRead(buf){
 }
 
 /* ===================== מודל הפרויקט ===================== */
-const P = { name:'My Extension', files:new Map(), folders:new Set() };
+const P = { id:null, name:'My Extension', files:new Map(), folders:new Set() };
 let tabs = [], active = null, previewTab = null;
 const collapsed = new Set();
 let lastProblems = { errors:[], warnings:[] };
@@ -587,7 +601,19 @@ async function idbSet(k, v){ const d = await db(); if (!d) return;
 async function idbGet(k){ const d = await db(); if (!d) return null;
   return new Promise(res => { const t = d.transaction(STORE, 'readonly'); const q = t.objectStore(STORE).get(k);
     q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); }
+async function idbDel(k){ const d = await db(); if (!d) return;
+  return new Promise(res => { const t = d.transaction(STORE, 'readwrite'); t.objectStore(STORE).delete(k); t.oncomplete = res; t.onerror = res; }); }
 
+/* --- ריבוי פרויקטים: אינדקס ב-'projects', וכל פרויקט תחת 'p:<id>' --- */
+const newId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const listProjects = async () => (await idbGet('projects')) || [];
+function snapshot(){
+  const files = [];
+  for (const f of P.files.values())
+    files.push({ path:f.path, binary:f.binary, text:f.text, bytes:f.bytes, dirty:f.dirty });
+  return { id:P.id, name:P.name, files, folders:[...P.folders],
+           tabs, active, collapsed:[...collapsed], updated:Date.now(), v:2 };
+}
 let saveTimer = null;
 function scheduleSave(){
   setSaveState('שינויים לא נשמרו…');
@@ -595,29 +621,45 @@ function scheduleSave(){
   saveTimer = setTimeout(persist, 700);
 }
 async function persist(){
-  const files = [];
-  for (const f of P.files.values())
-    files.push({ path:f.path, binary:f.binary, text:f.text, bytes:f.bytes, dirty:f.dirty });
-  await idbSet('project', { name:P.name, files, folders:[...P.folders],
-                            tabs, active, collapsed:[...collapsed], v:1 });
+  if (!P.id) return;
+  const rec = snapshot();
+  await idbSet('p:' + P.id, rec);
+  const idx = await listProjects();
+  const entry = { id:P.id, name:P.name, updated:rec.updated, count:P.files.size };
+  const i = idx.findIndex(x => x.id === P.id);
+  if (i < 0) idx.push(entry); else idx[i] = entry;
+  await idbSet('projects', idx);
+  prefs.set('last', P.id);
   setSaveState('נשמר ל-IndexedDB');
 }
 function setSaveState(txt){ const el = $('st-save'); el.textContent = txt; el.style.opacity = '1';
   clearTimeout(setSaveState._t); setSaveState._t = setTimeout(() => el.style.opacity = '.7', 1600); }
 
-async function restore(){
-  const s = await idbGet('project');
-  if (!s || !s.files || !s.files.length) return false;
-  P.files.clear(); P.folders.clear();
-  P.name = s.name || 'My Extension';
-  for (const r of s.files){
+function applyRecord(rec){
+  P.files.forEach(dropUrl);
+  P.id = rec.id; P.name = rec.name || 'My Extension';
+  P.files.clear(); P.folders.clear(); collapsed.clear();
+  for (const r of rec.files || []){
     const f = addFile(r.path, r.binary ? new Uint8Array(r.bytes) : (r.text || ''));
     f.dirty = !!r.dirty;
   }
-  (s.folders || []).forEach(x => P.folders.add(x));
-  (s.collapsed || []).forEach(x => collapsed.add(x));
-  tabs = (s.tabs || []).filter(t => P.files.has(t));
-  active = P.files.has(s.active) ? s.active : (tabs[0] || null);
+  (rec.folders || []).forEach(x => P.folders.add(x));
+  (rec.collapsed || []).forEach(x => collapsed.add(x));
+  tabs = (rec.tabs || []).filter(t => P.files.has(t));
+  active = P.files.has(rec.active) ? rec.active : (tabs[0] || null);
+  previewTab = null;
+}
+function refreshAll(){
+  nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
+  renderTree(); renderTabs(); showActive(); validate();
+}
+async function switchProject(id){
+  if (id === P.id) return true;
+  clearTimeout(saveTimer); await persist();
+  const rec = await idbGet('p:' + id);
+  if (!rec){ toast('הפרויקט לא נמצא.', 'err'); return false; }
+  applyRecord(rec); refreshAll(); prefs.set('last', id);
+  setSaveState('נטען'); toast('עברת אל <b>' + esc(P.name) + '</b>', 'ok');
   return true;
 }
 const prefs = {
@@ -1205,6 +1247,7 @@ window.addEventListener('resize', hideCtx);
 
 /* ===================== דיאלוגים / הודעות ===================== */
 function modal({ title, body, buttons, wide }){
+  if (modal._done) modal._done(null);   /* סוגר דיאלוג פתוח קודם ומנקה את המאזין שלו */
   return new Promise(res => {
     const bd = $('backdrop');
     bd.innerHTML = '';
@@ -1225,7 +1268,7 @@ function modal({ title, body, buttons, wide }){
     document.addEventListener('keydown', onKey, true);
     bd.onmousedown = e => { if (e.target === bd) done(null); };
     d.append(h, b, f); bd.appendChild(d); bd.classList.add('open');
-    const first = b.querySelector('input,select,textarea') || f.querySelector('button');
+    const first = b.querySelector('input,select,textarea,.choice') || f.querySelector('button');
     if (first) setTimeout(() => first.focus(), 30);
     modal._done = done;
   });
@@ -1266,6 +1309,8 @@ function validate(){
   let man = null;
   if (!mf) E.push({ msg:'חסר הקובץ manifest.json — בלעדיו כרום לא יטען את התוסף.' });
   else if (mf.binary) E.push({ file:'manifest.json', msg:'manifest.json אינו קובץ טקסט.' });
+  else if (!mf.text.trim())
+    E.push({ file:'manifest.json', line:1, msg:'manifest.json ריק — צריך למלא אותו כדי שכרום יטען את התוסף.' });
   else {
     try { man = JSON.parse(mf.text); }
     catch(e){
@@ -1398,6 +1443,7 @@ async function importZipFile(file){
     nfold.forEach(d => P.folders.add(d));
     for (const [p, v] of nf) addFile(p, v.binary ? v.bytes : v.text);
     P.name = file.name.replace(/\.[^.]*$/, '') || 'My Extension';
+  if (!P.id) P.id = newId();
     syncNameFromManifest(true);
     if (P.files.has('manifest.json')) openFile('manifest.json', true);
     else { const first = [...P.files.keys()].find(p => !P.files.get(p).binary); if (first) openFile(first, true); }
@@ -1569,7 +1615,7 @@ function showHelp(){
     <h4>איך מחליפים אייקון?</h4>
     <div>פותחים את קובץ האייקון בעץ ולוחצים <b>החלפת תמונה</b>, או גוררים תמונה חדשה לתוך התיקייה <code>icons</code>. אפשר גם להעתיק תמונה וללחוץ <kbd>Ctrl</kbd>+<kbd>V</kbd>.</div>
     <h4>איפה נשמרת העבודה?</h4>
-    <div>אוטומטית ב-IndexedDB של הדפדפן, אז רענון או סגירה לא מאבדים כלום. זה מקומי לדפדפן ולמחשב הזה — לגיבוי אמיתי או להעברה למחשב אחר השתמשו ב<b>הורדת ZIP</b>.</div>
+    <div>אוטומטית ב-IndexedDB של הדפדפן, אז רענון או סגירה לא מאבדים כלום. אפשר להחזיק כמה פרויקטים במקביל ולעבור ביניהם דרך כפתור <b>פרויקטים</b>. זה מקומי לדפדפן ולמחשב הזה — לגיבוי אמיתי או להעברה למחשב אחר השתמשו ב<b>הורדת ZIP</b>.</div>
     <h4>קיצורי מקלדת</h4>
     <div style="font-family:var(--mono);font-size:12px;line-height:2;direction:ltr;text-align:left">
       Ctrl+S שמירה · Ctrl+Shift+S ייצוא ZIP · Ctrl+O פתיחת ZIP · Ctrl+N קובץ חדש<br>
@@ -1583,39 +1629,138 @@ function showHelp(){
     buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
 }
 
-/* ===================== פרויקט חדש ===================== */
+/* ===================== פרויקטים ===================== */
+/* פרויקט ריק — אותו מבנה קבצים, בלי תוכן */
 function loadEmpty(){
   P.files.clear(); P.folders.clear(); P.name = 'My Extension';
+  for (const k of Object.keys(DEFAULTS)) addFile(k, '', { dirty:true });
+  P.folders.add('icons');
   tabs = []; active = null; previewTab = null; collapsed.clear();
 }
+const FILE_LIST = Object.keys(DEFAULTS).join(' · ') + ' · icons/';
+
 async function newProject(){
-  const warn = P.files.size
-    ? '<div class="hint" style="margin-bottom:14px">⚠ הפרויקט הנוכחי יימחק. אפשר לשמור אותו קודם בעזרת "הורדת ZIP".</div>'
-    : '';
-  const kind = await modal({ title:'פרויקט חדש', body:`${warn}
-    <div class="choice"><b>🧩 תבנית מלאה</b>
-      <div>manifest תקין, שישה קבצי בסיס עם קוד התחלתי, ושלושה אייקונים.
-      אפשר לייצא ולטעון בכרום מיד, ואז לשנות.</div></div>
-    <div class="choice"><b>📄 פרויקט ריק</b>
-      <div>בלי שום קובץ. מתאים למי שבונה מאפס, או מדביק קבצים מבינה מלאכותית.
-      שימו לב: בלי <code>manifest.json</code> כרום לא יטען את התוסף.</div></div>`,
-    buttons:[
-      { label:'תבנית מלאה', cls:'btn-primary', value:'full' },
-      { label:'פרויקט ריק', value:'empty' },
-      { label:'ביטול', value:null }
-    ]});
+  const w = document.createElement('div');
+  w.innerHTML = `
+    <button class="choice" data-k="full">
+      <b>🧩 תבנית מלאה</b>
+      <div>manifest תקין וקוד התחלתי בכל קובץ, כולל שלושה אייקונים מוכנים.
+      אפשר לייצא ולטעון בכרום מיד, ואז לשנות.</div>
+      <div class="files">${esc(FILE_LIST)}icon16.png · icon48.png · icon128.png</div>
+    </button>
+    <button class="choice" data-k="empty">
+      <b>📄 פרויקט ריק</b>
+      <div>אותם קבצים בדיוק ואותה תיקיית <code>icons</code> — אבל כולם ריקים לגמרי.
+      מתאים למי שבונה מאפס או מדביק קוד מבינה מלאכותית.</div>
+      <div class="files">${esc(FILE_LIST)}</div>
+    </button>`;
+  w.querySelectorAll('.choice').forEach(el => el.onclick = () => modal._done(el.dataset.k));
+  const kind = await modal({ title:'פרויקט חדש', body:w, buttons:[{ label:'ביטול', value:null }] });
   if (!kind) return;
+  await createProject(kind);
+}
+async function createProject(kind){
+  clearTimeout(saveTimer);
+  if (P.id) await persist();                 /* הפרויקט הקודם נשמר ונשאר ברשימה */
   P.files.forEach(dropUrl);
+  P.id = newId();
   if (kind === 'full') loadDefaults(); else loadEmpty();
-  nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
-  renderTree();
-  if (kind === 'full') openFile('manifest.json', true);
-  renderTabs(); showActive(); validate(); persist();
-  toast(kind === 'full' ? 'נוצר פרויקט חדש מתבנית מלאה' : 'נוצר פרויקט ריק — הוסיפו קבצים מהעץ', 'ok');
+  refreshAll();
+  if (P.files.has('manifest.json')) openFile('manifest.json', true);
+  await persist();
+  toast(kind === 'full' ? 'נוצר פרויקט חדש מתבנית מלאה' : 'נוצר פרויקט ריק — הקבצים נוצרו ריקים', 'ok');
+}
+
+const relTime = t => { const s = (Date.now() - t) / 1000;
+  if (s < 60) return 'עכשיו';
+  if (s < 3600) return 'לפני ' + Math.floor(s/60) + ' דק׳';
+  if (s < 86400) return 'לפני ' + Math.floor(s/3600) + ' שע׳';
+  if (s < 604800) return 'לפני ' + Math.floor(s/86400) + ' ימים';
+  return new Date(t).toLocaleDateString('he-IL'); };
+
+async function projectsDialog(){
+  clearTimeout(saveTimer); await persist();
+  const w = document.createElement('div');
+  const draw = async () => {
+    const idx = (await listProjects()).sort((a, b) => b.updated - a.updated);
+    w.innerHTML = '';
+    const list = document.createElement('div'); list.className = 'plist';
+    for (const p of idx){
+      const cur = p.id === P.id;
+      const r = document.createElement('div'); r.className = 'prow' + (cur ? ' cur' : '');
+      r.innerHTML = `<span class="mark">${cur ? '●' : ''}</span>
+        <span class="pn">${esc(p.name || 'ללא שם')}</span>
+        <span class="pm">${p.count} קבצים · ${relTime(p.updated)}</span>
+        <span class="pa">
+          <button class="icon-btn" data-a="ren" title="שינוי שם">✎</button>
+          <button class="icon-btn" data-a="dup" title="שכפול">⧉</button>
+          <button class="icon-btn" data-a="del" title="מחיקה">🗑</button>
+        </span>`;
+      r.querySelector('.pn').onclick = r.querySelector('.pm').onclick = async () => {
+        if (!cur){ modal._done(null); await switchProject(p.id); }
+      };
+      r.querySelector('[data-a=ren]').onclick = async () => {
+        const nm = await promptDlg('שינוי שם הפרויקט', 'שם חדש:', p.name, v => v.trim() ? null : 'צריך להזין שם.');
+        if (nm === null) return;
+        await renameProject(p.id, nm.trim()); projectsDialog();
+      };
+      r.querySelector('[data-a=dup]').onclick = async () => { await duplicateProject(p.id); projectsDialog(); };
+      r.querySelector('[data-a=del]').onclick = async () => {
+        const ok = await confirmDlg('מחיקת פרויקט',
+          `למחוק את <b>${esc(p.name)}</b> (${p.count} קבצים)?<br><span class="hint">אי אפשר לבטל. אפשר לשמור אותו קודם בעזרת "הורדת ZIP".</span>`, true);
+        if (!ok) return projectsDialog();
+        await deleteProject(p.id); projectsDialog();
+      };
+      list.appendChild(r);
+    }
+    if (!idx.length) list.innerHTML = '<div class="hint" style="padding:14px;text-align:center">אין פרויקטים שמורים.</div>';
+    w.appendChild(list);
+  };
+  await draw();
+  const v = await modal({ title:'הפרויקטים שלי', body:w,
+    buttons:[{ label:'＋ פרויקט חדש', cls:'btn-primary', value:'new' }, { label:'סגירה', value:null }] });
+  if (v === 'new') await newProject();
+}
+async function renameProject(id, name){
+  const rec = id === P.id ? snapshot() : await idbGet('p:' + id);
+  if (!rec) return;
+  rec.name = name;
+  const mf = (rec.files || []).find(f => f.path === 'manifest.json' && !f.binary);
+  if (mf){ try { const m = JSON.parse(mf.text); m.name = name; mf.text = JSON.stringify(m, null, 2); } catch(e){} }
+  await idbSet('p:' + id, rec);
+  const idx = await listProjects(); const e = idx.find(x => x.id === id);
+  if (e) e.name = name;
+  await idbSet('projects', idx);
+  if (id === P.id){ applyRecord(rec); refreshAll(); }
+  toast('שם הפרויקט שונה ל-<b>' + esc(name) + '</b>', 'ok');
+}
+async function duplicateProject(id){
+  const rec = id === P.id ? snapshot() : await idbGet('p:' + id);
+  if (!rec) return;
+  const copy = { ...rec, id:newId(), name:rec.name + ' — עותק', updated:Date.now() };
+  await idbSet('p:' + copy.id, copy);
+  const idx = await listProjects();
+  idx.push({ id:copy.id, name:copy.name, updated:copy.updated, count:(copy.files || []).length });
+  await idbSet('projects', idx);
+  toast('שוכפל: <b>' + esc(copy.name) + '</b>', 'ok');
+}
+async function deleteProject(id){
+  await idbDel('p:' + id);
+  let idx = (await listProjects()).filter(x => x.id !== id);
+  await idbSet('projects', idx);
+  if (id !== P.id){ toast('הפרויקט נמחק', 'ok'); return; }
+  if (idx.length){
+    const rec = await idbGet('p:' + idx.sort((a, b) => b.updated - a.updated)[0].id);
+    if (rec){ applyRecord(rec); refreshAll(); prefs.set('last', P.id); toast('הפרויקט נמחק — עברת אל <b>' + esc(P.name) + '</b>', 'ok'); return; }
+  }
+  P.files.forEach(dropUrl); P.id = newId(); loadDefaults(); refreshAll();
+  openFile('manifest.json', true); await persist();
+  toast('הפרויקט נמחק — נוצר פרויקט חדש', 'ok');
 }
 
 /* ===================== חיבורי ממשק ===================== */
 $('btn-new').onclick = newProject;
+$('btn-projects').onclick = projectsDialog;
 $('btn-open').onclick = () => $('zip-input').click();
 $('btn-export').onclick = exportZip;
 $('btn-help').onclick = showHelp;
@@ -1724,13 +1869,31 @@ window.addEventListener('resize', syncScroll);
   if (prefs.get('sbc', false)) document.body.classList.add('sb-collapsed');
 
   let restored = false;
-  try { restored = await restore(); } catch(e){ restored = false; }
-  if (!restored){ loadDefaults(); tabs = ['manifest.json']; active = 'manifest.json'; }
+  try {
+    /* הגירה מהגרסה הישנה בעלת פרויקט יחיד */
+    let idx = await listProjects();
+    const old = await idbGet('project');
+    if (!idx.length && old && old.files && old.files.length){
+      const rec = { ...old, id:newId(), updated:Date.now(), v:2 };
+      await idbSet('p:' + rec.id, rec);
+      await idbSet('projects', [{ id:rec.id, name:rec.name, updated:rec.updated, count:rec.files.length }]);
+      await idbDel('project');
+      idx = await listProjects();
+    }
+    if (idx.length){
+      const want = prefs.get('last', null);
+      const pick = idx.find(x => x.id === want) || idx.sort((a, b) => b.updated - a.updated)[0];
+      const rec = await idbGet('p:' + pick.id);
+      if (rec){ applyRecord(rec); restored = true; }
+    }
+  } catch(e){ restored = false; }
+  if (!restored){ P.id = newId(); loadDefaults(); tabs = ['manifest.json']; active = 'manifest.json'; }
   nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
   syncNameFromManifest(true);
   renderTree(); renderTabs(); showActive(); validate();
+  if (!restored) persist();
   setSaveState(restored ? 'שוחזר מ-IndexedDB' : 'מוכן');
-  if (restored) toast('הפרויקט שוחזר מהדפדפן', 'ok');
+  if (restored) toast('הפרויקט <b>' + esc(P.name) + '</b> שוחזר מהדפדפן', 'ok');
   if (typeof CompressionStream === 'undefined')
     toast('הדפדפן לא תומך בדחיסה — קובץ ה-ZIP ייווצר ללא דחיסה (עדיין תקין לחלוטין).', 'warn');
 })();
