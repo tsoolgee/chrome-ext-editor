@@ -151,6 +151,7 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
 .status-item{display:flex;align-items:center;gap:14px}
 .status-item span{white-space:nowrap}
 .status-item .he{direction:rtl;unicode-bidi:isolate}
+#st-save.bad{background:var(--danger-color);color:#fff;border-radius:4px;padding:0 7px;font-weight:600;opacity:1!important}
 .num{direction:ltr;unicode-bidi:isolate}
 .status-item .clickable{cursor:pointer;padding:0 5px;border-radius:4px}
 .status-item .clickable:hover{background:rgba(255,255,255,.18)}
@@ -271,6 +272,7 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
         <button class="icon-btn" id="t-newfile" title="קובץ חדש (Ctrl+N)">🗎</button>
         <button class="icon-btn" id="t-newfolder" title="תיקייה חדשה">🗀</button>
         <button class="icon-btn" id="t-upload" title="העלאת קבצים / אייקונים">⬆</button>
+        <button class="icon-btn" id="t-copytext" title="העתקת כל הפרויקט כטקסט">📋</button>
         <button class="icon-btn" id="t-collapse" title="כיווץ הכל">⇱</button>
       </span>
     </div>
@@ -424,7 +426,8 @@ async function zipRead(buf){
 
   const count = dv.getUint16(eocd+10, true);
   let p = dv.getUint32(eocd+16, true);
-  const dec = new TextDecoder('utf-8'), decCp = new TextDecoder('utf-8', { fatal:false });
+  const dec = new TextDecoder('utf-8');
+  let decCp; try { decCp = new TextDecoder('windows-1255'); } catch(e){ decCp = new TextDecoder('utf-8'); }
   const out = [];
   for (let i = 0; i < count; i++){
     if (dv.getUint32(p, true) !== 0x02014b50) break;
@@ -432,7 +435,11 @@ async function zipRead(buf){
     const compSize = dv.getUint32(p+20, true), rawSize = dv.getUint32(p+24, true);
     const nLen = dv.getUint16(p+28, true), eLen = dv.getUint16(p+30, true), cLen = dv.getUint16(p+32, true);
     const lho  = dv.getUint32(p+42, true);
-    const name = (flags & 0x800 ? dec : decCp).decode(u8.subarray(p+46, p+46+nLen));
+    const nameBytes = u8.subarray(p+46, p+46+nLen);
+    let name;
+    if (flags & 0x800) name = dec.decode(nameBytes);
+    else { try { name = new TextDecoder('utf-8', { fatal:true }).decode(nameBytes); }
+           catch(err){ name = decCp.decode(nameBytes); } }
     p += 46 + nLen + eLen + cLen;
 
     if (dv.getUint32(lho, true) !== 0x04034b50) continue;
@@ -463,15 +470,15 @@ function decodeText(u8){
   if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);          /* הסרת BOM */
   return s.replace(/\r\n/g, '\n');
 }
+/* קובץ נחשב טקסט רק אם הוא באמת UTF-8 תקין. קובץ ב-1255 או UTF-16 יישמר
+   כבינארי ולא ייערך — עדיף מאשר להמיר אותו ל-??? ולהרוס אותו בייצוא. */
 function looksText(name, u8){
   const e = ext(name);
-  if (e === 'svg') return true;
-  if (IMG_EXT.includes(e)) return false;
-  if (TEXT_EXT.includes(e)) return true;
-  if (['zip','png','jpg','jpeg','gif','webp','ico','woff','woff2','ttf','otf','mp3','mp4','wasm','pdf'].includes(e)) return false;
-  const n = Math.min(u8.length, 2048);
-  for (let i = 0; i < n; i++) if (u8[i] === 0) return false;
-  try { new TextDecoder('utf-8', { fatal:true }).decode(u8.subarray(0, n)); return true; } catch(e2){ return false; }
+  if (IMG_EXT.includes(e) && e !== 'svg') return false;
+  if (['zip','woff','woff2','ttf','otf','mp3','mp4','wasm','pdf','exe','dll'].includes(e)) return false;
+  if (u8.length >= 2 && ((u8[0] === 0xFF && u8[1] === 0xFE) || (u8[0] === 0xFE && u8[1] === 0xFF))) return false;
+  for (let i = 0, n = Math.min(u8.length, 4096); i < n; i++) if (u8[i] === 0) return false;
+  try { new TextDecoder('utf-8', { fatal:true }).decode(u8); return true; } catch(e2){ return false; }
 }
 function addFile(path, content, opts = {}){
   const isTxt = typeof content === 'string';
@@ -596,13 +603,28 @@ function db(){
   }).catch(() => null);
   return dbP;
 }
-async function idbSet(k, v){ const d = await db(); if (!d) return;
-  return new Promise(res => { const t = d.transaction(STORE, 'readwrite'); t.objectStore(STORE).put(v, k); t.oncomplete = res; t.onerror = res; }); }
+async function idbSet(k, v){
+  const d = await db();
+  if (!d){ const e = new Error('אין אחסון זמין'); e.code = 'unavailable'; throw e; }
+  return new Promise((res, rej) => {
+    let t;
+    try { t = d.transaction(STORE, 'readwrite'); } catch(err){ return rej(err); }
+    try { t.objectStore(STORE).put(v, k); } catch(err){ return rej(err); }
+    t.oncomplete = () => res();
+    t.onerror    = () => rej(t.error || new Error('הכתיבה נכשלה'));
+    t.onabort    = () => rej(t.error || new Error('הכתיבה בוטלה'));
+  });
+}
 async function idbGet(k){ const d = await db(); if (!d) return null;
-  return new Promise(res => { const t = d.transaction(STORE, 'readonly'); const q = t.objectStore(STORE).get(k);
-    q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); }
+  return new Promise(res => {
+    try { const t = d.transaction(STORE, 'readonly'); const q = t.objectStore(STORE).get(k);
+          q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); t.onerror = () => res(null); }
+    catch(e){ res(null); } }); }
 async function idbDel(k){ const d = await db(); if (!d) return;
-  return new Promise(res => { const t = d.transaction(STORE, 'readwrite'); t.objectStore(STORE).delete(k); t.oncomplete = res; t.onerror = res; }); }
+  return new Promise(res => {
+    try { const t = d.transaction(STORE, 'readwrite'); t.objectStore(STORE).delete(k);
+          t.oncomplete = () => res(); t.onerror = () => res(); t.onabort = () => res(); }
+    catch(e){ res(); } }); }
 
 /* --- ריבוי פרויקטים: אינדקס ב-'projects', וכל פרויקט תחת 'p:<id>' --- */
 const newId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -615,27 +637,77 @@ function snapshot(){
            tabs, active, collapsed:[...collapsed], updated:Date.now(), v:2 };
 }
 let saveTimer = null;
+let savePending = false;
 function scheduleSave(){
+  savePending = true;
   setSaveState('שינויים לא נשמרו…');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(persist, 700);
 }
+let saveBroken = false;
 async function persist(){
-  if (!P.id) return;
+  if (!P.id) return true;
   const rec = snapshot();
-  await idbSet('p:' + P.id, rec);
-  const idx = await listProjects();
-  const entry = { id:P.id, name:P.name, updated:rec.updated, count:P.files.size };
-  const i = idx.findIndex(x => x.id === P.id);
-  if (i < 0) idx.push(entry); else idx[i] = entry;
-  await idbSet('projects', idx);
-  prefs.set('last', P.id);
-  setSaveState('נשמר ל-IndexedDB');
+  try {
+    await idbSet('p:' + P.id, rec);
+    const idx = await listProjects();
+    const entry = { id:P.id, name:P.name, updated:rec.updated, count:P.files.size };
+    const i = idx.findIndex(x => x.id === P.id);
+    if (i < 0) idx.push(entry); else idx[i] = entry;
+    await idbSet('projects', idx);
+    prefs.set('last', P.id);
+    saveBroken = false; savePending = false;
+    $('st-save').classList.remove('bad');
+    setSaveState('נשמר ל-IndexedDB');
+    return true;
+  } catch(e){
+    reportSaveFailure(e);
+    return false;
+  }
+}
+/* שמירה שנכשלת חייבת להיראות — אחרת המשתמש סוגר את הדפדפן ומאבד הכל */
+function reportSaveFailure(e){
+  const unavailable = e && e.code === 'unavailable';
+  const quota = e && (e.name === 'QuotaExceededError' || /quota|exceed/i.test(e.message || ''));
+  $('st-save').classList.add('bad');
+  setSaveState(unavailable ? '⚠ אין שמירה בדפדפן' : '⚠ השמירה נכשלה');
+  if (saveBroken) return;                 /* מודיעים פעם אחת, לא בכל הקלדה */
+  saveBroken = true;
+  toast(unavailable
+      ? 'הדפדפן לא מאפשר שמירה מקומית (למשל בגלישה פרטית). <b>העבודה לא תישמר</b> — כדאי לייצא ZIP.'
+      : quota
+      ? 'נגמר מקום האחסון בדפדפן. <b>השמירה נכשלה.</b> ייצאו ZIP ומחקו פרויקטים ישנים דרך "פרויקטים".'
+      : 'השמירה נכשלה. <b>ייצאו ZIP</b> כדי לא לאבד את העבודה.', 'err');
+}
+/* שמירה לפני פעולה שתדרוס את מה שבזיכרון */
+async function saveBeforeLeaving(what){
+  clearTimeout(saveTimer);
+  if (await persist()) return true;
+  return confirmDlg('השמירה נכשלה',
+    `לא הצלחנו לשמור את <b>${esc(P.name)}</b>, ו${what} ידרוס את השינויים שלא נשמרו.<br>
+     <span class="hint">מומלץ לבטל, לייצא ZIP, ורק אז להמשיך.</span><br><br>להמשיך בכל זאת?`, true);
 }
 function setSaveState(txt){ const el = $('st-save'); el.textContent = txt; el.style.opacity = '1';
   clearTimeout(setSaveState._t); setSaveState._t = setTimeout(() => el.style.opacity = '.7', 1600); }
 
+/* היסטוריית ביטול נשמרת בזיכרון לכל פרויקט, כדי שמעבר הלוך-ושוב לא ימחק אותה */
+const undoCache = new Map();
+function stashUndo(){
+  if (!P.id) return;
+  const m = new Map();
+  for (const f of P.files.values())
+    if (f.undo.length || f.redo.length) m.set(f.path, { undo:f.undo, redo:f.redo });
+  if (m.size) undoCache.set(P.id, m); else undoCache.delete(P.id);
+}
+function restoreUndo(){
+  const m = undoCache.get(P.id); if (!m) return;
+  for (const [path, s] of m){
+    const f = P.files.get(path);
+    if (f && !f.binary){ f.undo = s.undo; f.redo = s.redo; }
+  }
+}
 function applyRecord(rec){
+  stashUndo();
   P.files.forEach(dropUrl);
   P.id = rec.id; P.name = rec.name || 'My Extension';
   P.files.clear(); P.folders.clear(); collapsed.clear();
@@ -648,6 +720,7 @@ function applyRecord(rec){
   tabs = (rec.tabs || []).filter(t => P.files.has(t));
   active = P.files.has(rec.active) ? rec.active : (tabs[0] || null);
   previewTab = null;
+  restoreUndo();
 }
 function refreshAll(){
   nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
@@ -655,7 +728,7 @@ function refreshAll(){
 }
 async function switchProject(id){
   if (id === P.id) return true;
-  clearTimeout(saveTimer); await persist();
+  if (!await saveBeforeLeaving('המעבר לפרויקט אחר')) return false;
   const rec = await idbGet('p:' + id);
   if (!rec){ toast('הפרויקט לא נמצא.', 'err'); return false; }
   applyRecord(rec); refreshAll(); prefs.set('last', id);
@@ -766,7 +839,9 @@ ta.addEventListener('select', updatePos);
 function applyState(f, st){
   f.lastText = st.text; f.text = st.text; ta.value = st.text;
   ta.selectionStart = ta.selectionEnd = Math.min(st.sel, st.text.length);
-  paint(); updatePos(); f.dirty = true; renderTree(); renderTabs(); scheduleValidate(); scheduleSave();
+  paint(); updatePos(); f.dirty = true;
+  if (f.path === 'manifest.json') syncNameFromManifest(true);
+  renderTree(); renderTabs(); scheduleValidate(); scheduleSave();
 }
 function doUndo(){ const f = P.files.get(active); if (!f || f.binary || !f.undo.length) return;
   f.redo.push({ text:ta.value, sel:ta.selectionStart }); applyState(f, f.undo.pop()); f.lastPush = 0; }
@@ -789,7 +864,7 @@ ta.addEventListener('keydown', e => {
     if (s !== en || e.shiftKey){
       const ls = v.lastIndexOf('\n', s-1)+1;
       const block = v.slice(ls, en);
-      const nb = e.shiftKey ? block.replace(/^ {1,2}/gm, '') : block.replace(/^/gm, '  ');
+      const nb = e.shiftKey ? block.replace(/^ {1,2}/gm, '') : block.replace(/^(?!$)/gm, '  ');
       pushUndo(f, true); ta.setRangeText(nb, ls, en, 'end');
       ta.selectionStart = ls; ta.dispatchEvent(new Event('input'));
     } else insert('  ');
@@ -830,8 +905,6 @@ ta.addEventListener('keydown', e => {
 /* ===================== לשוניות ===================== */
 function openFile(path, permanent){
   if (!P.files.has(path)) return;
-  if (active && active !== path){ const old = P.files.get(active);
-    if (old && !old.binary){ old.sel = ta.selectionStart; old.scroll = ta.scrollTop; } }
   if (!tabs.includes(path)){
     if (previewTab && !permanent && tabs.includes(previewTab)){
       tabs[tabs.indexOf(previewTab)] = path;
@@ -860,20 +933,31 @@ function renderTabs(){
     el.onmousedown = ev => { if (ev.button === 1){ ev.preventDefault(); closeTab(p); } };
     el.oncontextmenu = ev => { ev.preventDefault(); showCtx(ev.clientX, ev.clientY, [
       { k:'✕', t:'סגירה', fn:() => closeTab(p) },
-      { k:'⇥', t:'סגירת האחרים', fn:() => { tabs = [p]; active = p; previewTab = null; showActive(); renderTabs(); } },
-      { k:'⌫', t:'סגירת הכל', fn:() => { tabs = []; active = null; previewTab = null; showActive(); renderTabs(); } }
+      { k:'⇥', t:'סגירת האחרים', fn:() => { tabs = [p]; active = p; previewTab = null; showActive(); renderTabs(); renderTree(); scheduleSave(); } },
+      { k:'⌫', t:'סגירת הכל', fn:() => { tabs = []; active = null; previewTab = null; showActive(); renderTabs(); renderTree(); scheduleSave(); } }
     ]); };
     el.ondragstart = ev => { ev.dataTransfer.setData('text/tab', p); el.classList.add('dragging'); };
     el.ondragend = () => el.classList.remove('dragging');
     el.ondragover = ev => { if (ev.dataTransfer.types.includes('text/tab')) ev.preventDefault(); };
     el.ondrop = ev => { ev.preventDefault();
       const src = ev.dataTransfer.getData('text/tab'); if (!src || src === p) return;
-      tabs.splice(tabs.indexOf(src), 1); tabs.splice(tabs.indexOf(p), 0, src); renderTabs(); };
+      tabs.splice(tabs.indexOf(src), 1); tabs.splice(tabs.indexOf(p), 0, src); renderTabs(); scheduleSave(); };
     c.appendChild(el);
   }
   const cur = c.querySelector('.tab.active'); if (cur) cur.scrollIntoView({ block:'nearest', inline:'nearest' });
 }
+let shownPath = null;
 function showActive(){
+  /* שומרים סמן וגלילה של הקובץ שהוצג עד עכשיו, ורק אם באמת מחליפים קובץ */
+  const prev = shownPath && P.files.get(shownPath);
+  const next = active && P.files.get(active);
+  const sameFile = !!prev && prev === next;
+  if (prev && !prev.binary && !sameFile){ prev.sel = ta.selectionStart; prev.scroll = ta.scrollTop; }
+  if (!sameFile){                       /* תוצאות חיפוש שייכות לקובץ שממנו יצאנו */
+    hits = []; hitIdx = -1;
+    if ($('findbar').classList.contains('open')) setTimeout(runFind, 0);
+  }
+  shownPath = active;
   const cont = $('ed-container');
   cont.querySelectorAll('.viewer,.welcome').forEach(n => n.remove());
   const f = active ? P.files.get(active) : null;
@@ -883,9 +967,13 @@ function showActive(){
   if (f.binary){ hide(true); cont.appendChild(viewerEl(f)); }
   else {
     hide(false);
-    ta.value = f.text; paint();
-    ta.selectionStart = ta.selectionEnd = Math.min(f.sel || 0, f.text.length);
-    ta.scrollTop = f.scroll || 0; syncScroll(); updatePos();
+    /* אותו קובץ שכבר מוצג — לא נוגעים בסמן ובגלילה החיים */
+    if (!sameFile || ta.value !== f.text){
+      ta.value = f.text; paint();
+      ta.selectionStart = ta.selectionEnd = Math.min(f.sel || 0, f.text.length);
+      ta.scrollTop = f.scroll || 0;
+    }
+    syncScroll(); updatePos();
   }
   $('st-path').textContent = f.path;
   $('st-lang').textContent = f.binary ? (ext(f.path).toUpperCase() || 'BIN') : (langOf(f.path) || 'Text').toUpperCase();
@@ -1007,6 +1095,7 @@ function row(path, isDir, depth){
   el.ondrop = async ev => {
     if (!isDir) return;
     ev.preventDefault(); ev.stopPropagation(); el.classList.remove('drop-target');
+    dragDepth = 0; $('dropzone').classList.remove('on');
     const src = ev.dataTransfer.getData('text/node');
     if (src) return moveNode(src, path);
     if (ev.dataTransfer.files.length) return uploadFiles(ev.dataTransfer.files, path);
@@ -1186,7 +1275,7 @@ async function uploadFiles(fileList, folder){
   for (const file of list){
     const buf = new Uint8Array(await file.arrayBuffer());
     let p = join(folder, file.name.replace(/[\/\\]/g, '_'));
-    if (nameError(base(p), dir(p), null)){ skipped++; continue; }
+    if (partInvalid(base(p)) || !base(p)){ skipped++; continue; }
     if (P.files.has(p) || P.folders.has(p)) p = uniquePath(p);
     addFile(p, looksText(file.name, buf) ? decodeText(buf) : buf, { dirty:true });
     added++;
@@ -1300,7 +1389,8 @@ function toast(msg, kind){
 
 /* ===================== בדיקת תקינות ===================== */
 let vTimer = null;
-const scheduleValidate = () => { clearTimeout(vTimer); vTimer = setTimeout(validate, 400); };
+const scheduleValidate = () => { clearTimeout(vTimer);
+  vTimer = setTimeout(() => { try { validate(); } catch(e){ console.error('validate:', e); } }, 400); };
 function lineOf(text, pos){ return text.slice(0, pos).split('\n').length; }
 
 function validate(){
@@ -1316,7 +1406,7 @@ function validate(){
     catch(e){
       const m = /position (\d+)/.exec(e.message);
       const ln = m ? lineOf(mf.text, +m[1]) : 1;
-      E.push({ file:'manifest.json', line:ln, msg:'manifest.json אינו JSON תקין — ' + e.message });
+      E.push({ file:'manifest.json', line:ln, msg:'manifest.json אינו JSON תקין — ' + esc(e.message) });
     }
   }
   if (man && typeof man === 'object'){
@@ -1329,12 +1419,14 @@ function validate(){
     else if (!/^\d+(\.\d+){0,3}$/.test(String(man.version)))
       E.push({ file:'manifest.json', line:at('version'), msg:'version חייב להיות עד 4 מספרים מופרדים בנקודה — לדוגמה 1.0.3' });
 
+    const arr = v => Array.isArray(v) ? v : [];
     const referenced = new Set();
     const need = (p, where) => {
       if (typeof p !== 'string' || !p || /^(https?:)?\/\//.test(p)) return;
       const clean = p.replace(/^\.?\//, '');
       referenced.add(clean);
-      if (!P.files.has(clean)) E.push({ file:'manifest.json', line:at(where), msg:`ה-manifest מפנה ל-"${clean}" אבל הקובץ לא קיים בפרויקט.` });
+      if (!P.files.has(clean.split(/[?#]/)[0])) E.push({ file:'manifest.json', line:at(where),
+        msg:`ה-manifest מפנה ל-"${esc(clean)}" אבל הקובץ לא קיים בפרויקט.` });
     };
     need(man.action?.default_popup, 'default_popup');
     need(man.background?.service_worker, 'service_worker');
@@ -1342,29 +1434,30 @@ function validate(){
     need(man.options_ui?.page, 'options_ui');
     for (const k of Object.keys(man.icons || {})) need(man.icons[k], 'icons');
     for (const k of Object.keys(man.action?.default_icon || {})) need(man.action.default_icon[k], 'default_icon');
-    for (const cs of (man.content_scripts || [])){
-      (cs.js || []).forEach(p => need(p, 'content_scripts'));
-      (cs.css || []).forEach(p => need(p, 'content_scripts'));
-      if ((cs.matches || []).includes('<all_urls>'))
+    for (const cs of arr(man.content_scripts)){
+      arr(cs && cs.js).forEach(p => need(p, 'content_scripts'));
+      arr(cs && cs.css).forEach(p => need(p, 'content_scripts'));
+      if (arr(cs && cs.matches).includes('<all_urls>'))
         W.push({ file:'manifest.json', line:at('matches'), msg:'content_scripts מוגדר על &lt;all_urls&gt; — הקוד ירוץ בכל אתר שגולשים בו. מומלץ לצמצם ל-matches ספציפי.' });
-      if (!cs.matches || !cs.matches.length)
+      if (!arr(cs && cs.matches).length)
         E.push({ file:'manifest.json', line:at('content_scripts'), msg:'ל-content_scripts חייב להיות matches עם לפחות ערך אחד.' });
     }
-    for (const w of (man.web_accessible_resources || []))
-      (w.resources || []).forEach(p => { if (!p.includes('*')) need(p, 'web_accessible_resources'); });
+    for (const w of arr(man.web_accessible_resources))
+      arr(w && w.resources).forEach(p => { if (typeof p === 'string' && !p.includes('*')) need(p, 'web_accessible_resources'); });
 
     /* התאמת מידות אייקונים */
     for (const [k, v] of Object.entries(man.icons || {})){
       const f = P.files.get(String(v).replace(/^\.?\//, ''));
       if (f && f.w && f.w !== +k)
-        W.push({ file:f.path, msg:`האייקון מוגדר תחת "${k}" אבל המידות שלו הן ${f.w}×${f.h}.` });
+        W.push({ file:f.path, msg:`האייקון מוגדר תחת "${esc(k)}" אבל המידות שלו הן ${f.w}×${f.h}.` });
     }
     /* קבצים יתומים */
-    const textBlob = [...P.files.values()].filter(f => !f.binary).map(f => f.text).join('\n');
     for (const p of P.files.keys()){
       if (p === 'manifest.json' || referenced.has(p)) continue;
+      if (man.default_locale && p.startsWith('_locales/')) continue;
+      const textBlob = [...P.files.values()].filter(f => !f.binary && f.path !== p).map(f => f.text).join('\n');
       if (textBlob.includes(base(p))) continue;
-      W.push({ file:p, msg:'אף קובץ לא מפנה אל ' + base(p) + ' — ייתכן שהוא מיותר.' });
+      W.push({ file:p, msg:'אף קובץ לא מפנה אל ' + esc(base(p)) + ' — ייתכן שהוא מיותר.' });
     }
   }
   /* JSON תקין בכל שאר קבצי ה-JSON */
@@ -1372,7 +1465,7 @@ function validate(){
     if (f.binary || f.path === 'manifest.json' || ext(f.path) !== 'json' || !f.text.trim()) continue;
     try { JSON.parse(f.text); }
     catch(e){ const m = /position (\d+)/.exec(e.message);
-      E.push({ file:f.path, line:m ? lineOf(f.text, +m[1]) : 1, msg:'JSON לא תקין — ' + e.message }); }
+      E.push({ file:f.path, line:m ? lineOf(f.text, +m[1]) : 1, msg:'JSON לא תקין — ' + esc(e.message) }); }
   }
   lastProblems = { errors:E, warnings:W };
   renderProblems();
@@ -1409,6 +1502,8 @@ async function importZipFile(file){
   try {
     setSaveState('טוען ZIP…');
     const entries = await zipRead(await file.arrayBuffer());
+    /* Compress-Archive של וינדוס כותב נתיבים עם בקסלאש — בלי זה כל תיקיות המשנה נזרקות */
+    for (const e of entries) e.name = e.name.replace(/\\/g, '/');
     let names = entries.map(e => e.name).filter(n => !JUNK.some(r => r.test(n)));
     if (!names.length) throw new Error('לא נמצא בקובץ שום דבר לטעון.');
 
@@ -1422,6 +1517,7 @@ async function importZipFile(file){
     const ok = await confirmDlg('ייבוא ZIP',
       `לטעון את <b>${esc(file.name)}</b> לעריכה?<br><span class="hint">הפרויקט הנוכחי יוחלף. אפשר לשמור אותו קודם בעזרת "הורדת ZIP".</span>`);
     if (!ok){ setSaveState('בוטל'); return; }
+    if (P.id && !await saveBeforeLeaving('ייבוא ה-ZIP')) return;
 
     const nf = new Map(), nfold = new Set();
     let loaded = 0, skipped = [];
@@ -1438,12 +1534,14 @@ async function importZipFile(file){
     }
     if (!loaded && !nfold.size) throw new Error('לא נמצאו קבצים בתוך ה-ZIP.');
 
+    undoCache.delete(P.id);      /* אותו מזהה, תוכן אחר לגמרי — ההיסטוריה כבר לא רלוונטית */
     P.files.forEach(dropUrl);
     P.files.clear(); P.folders.clear(); collapsed.clear(); tabs = []; active = null; previewTab = null;
     nfold.forEach(d => P.folders.add(d));
     for (const [p, v] of nf) addFile(p, v.binary ? v.bytes : v.text);
-    P.name = file.name.replace(/\.[^.]*$/, '') || 'My Extension';
-  if (!P.id) P.id = newId();
+      P.name = file.name.replace(/\.[^.]*$/, '') || 'My Extension';
+    if (!P.id) P.id = newId();
+    nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
     syncNameFromManifest(true);
     if (P.files.has('manifest.json')) openFile('manifest.json', true);
     else { const first = [...P.files.keys()].find(p => !P.files.get(p).binary); if (first) openFile(first, true); }
@@ -1458,7 +1556,7 @@ async function importZipFile(file){
 function safeName(s){ return (s || '').replace(/[\\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 60) || 'extension'; }
 async function exportZip(){
   if (!P.files.size) return toast('אין מה לייצא — הפרויקט ריק.', 'warn');
-  validate();
+  try { validate(); } catch(e){ console.error('validate:', e); }   /* בדיקה שנכשלת לא תמנע ייצוא */
   if (lastProblems.errors.length){
     $('problems').classList.add('open');
     const go = await confirmDlg('נמצאו שגיאות',
@@ -1553,18 +1651,28 @@ $('f-prev').onclick = () => { hitIdx--; focusHit(); };
 $('f-close').onclick = closeFind;
 function closeFind(){ $('findbar').classList.remove('open'); ta.focus(); }
 $('f-rep1').onclick = () => {
-  if (hitIdx < 0 || !hits.length) return;
-  const f = P.files.get(active); pushUndo(f, true);
-  ta.setRangeText($('f-replace').value, hits[hitIdx], hits[hitIdx] + $('f-find').value.length, 'end');
+  const f = active && P.files.get(active), q = $('f-find').value;
+  if (!f || f.binary || !q || hitIdx < 0 || !hits.length) return;
+  const pos = hits[hitIdx];
+  /* אם העורך השתנה מאז החיפוש, ההיסט כבר לא מצביע על מה שחיפשנו — מחפשים מחדש במקום להרוס טקסט */
+  if (pos === undefined || ta.value.substr(pos, q.length).toLowerCase() !== q.toLowerCase()){ runFind(); return; }
+  pushUndo(f, true);
+  ta.setRangeText($('f-replace').value, pos, pos + q.length, 'end');
   ta.dispatchEvent(new Event('input')); runFind();
 };
 $('f-repall').onclick = () => {
-  const q = $('f-find').value; if (!q) return;
-  const f = P.files.get(active); pushUndo(f, true);
-  const parts = ta.value.split(q), n = parts.length - 1;
-  ta.value = parts.join($('f-replace').value);
+  const q = $('f-find').value;
+  const f = active && P.files.get(active);
+  if (!q || !f || f.binary) return;
+  runFind();                                   /* מסתמכים על ההיסטים העדכניים, ובאותה רגישות רישיות כמו החיפוש */
+  if (!hits.length) return toast('לא נמצאו מופעים', 'warn');
+  pushUndo(f, true);
+  const rep = $('f-replace').value, n = hits.length;
+  let v = ta.value;
+  for (let i = n - 1; i >= 0; i--) v = v.slice(0, hits[i]) + rep + v.slice(hits[i] + q.length);
+  ta.value = v;
   ta.dispatchEvent(new Event('input')); runFind();
-  toast(`הוחלפו ${n} מופעים`, n ? 'ok' : 'warn');
+  toast(`הוחלפו ${n} מופעים`, 'ok');
 };
 
 /* ===================== חיפוש קובץ מהיר ===================== */
@@ -1599,6 +1707,43 @@ $('qo-in').addEventListener('keydown', e => {
 });
 document.addEventListener('mousedown', e => { if ($('qo').classList.contains('open') && !e.target.closest('.qo')) closeQO(); });
 
+/* ===================== העתקת הפרויקט כטקסט ===================== */
+function projectAsText(){
+  const paths = [...P.files.keys()].sort();
+  const emptyDirs = [...P.folders].sort().filter(d => !paths.some(p => p.startsWith(d + '/')));
+  const out = [`# ${P.name}`, '', 'מבנה הפרויקט:'];
+  for (const d of emptyDirs) out.push('  ' + d + '/');
+  for (const p of paths) out.push('  ' + p);
+  out.push('');
+  for (const p of paths){
+    const f = P.files.get(p);
+    if (f.binary){ out.push(`--- ${p} — קובץ בינארי (${fmtSize(fileSize(f))}), לא נכלל ---`, ''); continue; }
+    /* גדר ארוכה מכל רצף גרשים הפוכים בקובץ עצמו, אחרת קובץ עם ``` שובר את המבנה */
+    const longest = Math.max(0, ...(f.text.match(/`+/g) || []).map(r => r.length));
+    const fence = '`'.repeat(Math.max(3, longest + 1));
+    out.push(`--- ${p} ---`, fence + (langOf(p) || ''), f.text, fence, '');
+  }
+  return out.join('\n');
+}
+async function copyProjectText(){
+  if (!P.files.size) return toast('אין מה להעתיק — הפרויקט ריק.', 'warn');
+  const txt = projectAsText();
+  const size = fmtSize(new TextEncoder().encode(txt).length);
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast(`הפרויקט הועתק ללוח — ${P.files.size} קבצים, <span class="num">${size}</span>`, 'ok');
+    return;
+  } catch(e){ /* נופלים להעתקה ידנית */ }
+  const w = document.createElement('div');
+  w.innerHTML = '<div class="hint">הדפדפן חסם העתקה אוטומטית. הטקסט מסומן — העתיקו עם <kbd>Ctrl</kbd>+<kbd>C</kbd>:</div>';
+  const t = document.createElement('textarea');
+  t.value = txt; t.rows = 15; t.readOnly = true; t.style.direction = 'ltr'; t.style.textAlign = 'left';
+  w.appendChild(t);
+  setTimeout(() => { t.focus(); t.select(); }, 60);
+  modal({ title:'העתקת הפרויקט כטקסט', body:w, wide:true,
+          buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
+}
+
 /* ===================== עזרה ===================== */
 function showHelp(){
   modal({ wide:true, title:'עזרה ואודות', body:`
@@ -1614,6 +1759,8 @@ function showHelp(){
     </ol>
     <h4>איך מחליפים אייקון?</h4>
     <div>פותחים את קובץ האייקון בעץ ולוחצים <b>החלפת תמונה</b>, או גוררים תמונה חדשה לתוך התיקייה <code>icons</code>. אפשר גם להעתיק תמונה וללחוץ <kbd>Ctrl</kbd>+<kbd>V</kbd>.</div>
+    <h4>העתקת הפרויקט כטקסט</h4>
+    <div>הכפתור 📋 בסרגל הקבצים מעתיק ללוח את מבנה הפרויקט ואת תוכן כל קבצי הטקסט, בפורמט נוח להדבקה — למשל כששואלים שאלה בפורום או מתייעצים על הקוד.</div>
     <h4>איפה נשמרת העבודה?</h4>
     <div>אוטומטית ב-IndexedDB של הדפדפן, אז רענון או סגירה לא מאבדים כלום. אפשר להחזיק כמה פרויקטים במקביל ולעבור ביניהם דרך כפתור <b>פרויקטים</b>. זה מקומי לדפדפן ולמחשב הזה — לגיבוי אמיתי או להעברה למחשב אחר השתמשו ב<b>הורדת ZIP</b>.</div>
     <h4>קיצורי מקלדת</h4>
@@ -1660,8 +1807,8 @@ async function newProject(){
   await createProject(kind);
 }
 async function createProject(kind){
-  clearTimeout(saveTimer);
-  if (P.id) await persist();                 /* הפרויקט הקודם נשמר ונשאר ברשימה */
+  if (P.id && !await saveBeforeLeaving('יצירת פרויקט חדש')) return;
+  stashUndo();
   P.files.forEach(dropUrl);
   P.id = newId();
   if (kind === 'full') loadDefaults(); else loadEmpty();
@@ -1679,7 +1826,7 @@ const relTime = t => { const s = (Date.now() - t) / 1000;
   return new Date(t).toLocaleDateString('he-IL'); };
 
 async function projectsDialog(){
-  clearTimeout(saveTimer); await persist();
+  clearTimeout(saveTimer); await persist();   /* כישלון כאן כבר מדווח ע"י persist */
   const w = document.createElement('div');
   const draw = async () => {
     const idx = (await listProjects()).sort((a, b) => b.updated - a.updated);
@@ -1726,7 +1873,8 @@ async function renameProject(id, name){
   if (!rec) return;
   rec.name = name;
   const mf = (rec.files || []).find(f => f.path === 'manifest.json' && !f.binary);
-  if (mf){ try { const m = JSON.parse(mf.text); m.name = name; mf.text = JSON.stringify(m, null, 2); } catch(e){} }
+  if (mf){ try { const m = JSON.parse(mf.text); m.name = name; mf.text = JSON.stringify(m, null, 2);
+                 const c = undoCache.get(id); if (c) c.delete('manifest.json'); } catch(e){} }
   await idbSet('p:' + id, rec);
   const idx = await listProjects(); const e = idx.find(x => x.id === id);
   if (e) e.name = name;
@@ -1751,9 +1899,10 @@ async function deleteProject(id){
   if (id !== P.id){ toast('הפרויקט נמחק', 'ok'); return; }
   if (idx.length){
     const rec = await idbGet('p:' + idx.sort((a, b) => b.updated - a.updated)[0].id);
-    if (rec){ applyRecord(rec); refreshAll(); prefs.set('last', P.id); toast('הפרויקט נמחק — עברת אל <b>' + esc(P.name) + '</b>', 'ok'); return; }
+    if (rec){ applyRecord(rec); undoCache.delete(id); refreshAll(); prefs.set('last', P.id);
+              toast('הפרויקט נמחק — עברת אל <b>' + esc(P.name) + '</b>', 'ok'); return; }
   }
-  P.files.forEach(dropUrl); P.id = newId(); loadDefaults(); refreshAll();
+  P.files.forEach(dropUrl); P.id = newId(); loadDefaults(); undoCache.delete(id); refreshAll();
   openFile('manifest.json', true); await persist();
   toast('הפרויקט נמחק — נוצר פרויקט חדש', 'ok');
 }
@@ -1767,6 +1916,7 @@ $('btn-help').onclick = showHelp;
 $('t-newfile').onclick = () => newFile(currentFolder());
 $('t-newfolder').onclick = () => newFolder(currentFolder());
 $('t-upload').onclick = () => pickUpload(currentFolder());
+$('t-copytext').onclick = copyProjectText;
 $('t-collapse').onclick = () => { P.folders.forEach(f => collapsed.add(f)); renderTree(); scheduleSave(); };
 function currentFolder(){ return active ? dir(active) : ''; }
 function pickUpload(folder){
@@ -1856,8 +2006,10 @@ function saveActive(){
   f.dirty = false; renderTree(); renderTabs(); validate(); persist();
   toast('נשמר: ' + base(f.path), 'ok');
 }
+/* מזהירים רק כשבאמת יש מה לאבד: שמירה תלויה או שמירה שנכשלה.
+   סימון "נערך" בעץ מציין "טרם יוצא ל-ZIP" ולא "לא נשמר", ולכן הוא לא תנאי כאן. */
 window.addEventListener('beforeunload', e => {
-  if ([...P.files.values()].some(f => f.dirty)){ e.preventDefault(); e.returnValue = ''; }
+  if (savePending || saveBroken){ e.preventDefault(); e.returnValue = ''; }
 });
 window.addEventListener('resize', syncScroll);
 
