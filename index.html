@@ -2,7 +2,8 @@
 <!--
   ============================================================
    עורך תוספי כרום
-   רעיון מקורי : מיני האקר  — https://mitmachim.top/post/1239410
+   רעיון מקורי : מיני האקר  — https://mitmachim.top/user/%D7%9E%D7%99%D7%A0%D7%99-%D7%94%D7%90%D7%A7%D7%A8
+                 השרשור המקורי: https://mitmachim.top/post/1239410
    פיתוח ויצירה: צול גאה    — https://TSOOLGEE.UK
   ============================================================
   קובץ HTML יחיד. ללא שרת, ללא build, ללא ספריות חיצוניות.
@@ -53,6 +54,8 @@ button{font:inherit;color:inherit}
 .brand-title .logo{width:20px;height:20px;border-radius:5px;background:linear-gradient(140deg,var(--accent-hover),var(--accent-color));display:grid;place-items:center;font-size:11px;color:#fff}
 .credits{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .credits a{color:var(--accent-color);text-decoration:none}
+.credits a.cr-idea{color:var(--text-main);font-weight:600;border-bottom:1px dotted var(--text-muted)}
+.credits a.cr-idea:hover{color:var(--accent-hover);border-bottom-color:var(--accent-hover)}
 .credits a:hover{text-decoration:underline}
 .extension-name-input{background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-main);padding:5px 9px;border-radius:var(--r);font-size:13px;width:180px;transition:border-color .15s}
 .extension-name-input:focus{outline:none;border-color:var(--accent-hover)}
@@ -251,7 +254,7 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
   <div class="brand-section">
     <span class="brand-title"><span class="logo">🧩</span>עורך תוספים</span>
     <input type="text" class="extension-name-input" id="ext-name" value="My Extension" title="שם התוסף — מסונכרן עם manifest.json" spellcheck="false">
-    <span class="credits">רעיון: מיני האקר · יוצר: <a href="https://TSOOLGEE.UK" target="_blank" rel="noopener">צול גאה — TSOOLGEE.UK</a></span>
+    <span class="credits">רעיון: <a class="cr-idea" href="https://mitmachim.top/user/%D7%9E%D7%99%D7%A0%D7%99-%D7%94%D7%90%D7%A7%D7%A8" target="_blank" rel="noopener">@מיני האקר</a> · יוצר: <a href="https://TSOOLGEE.UK" target="_blank" rel="noopener">צול גאה — TSOOLGEE.UK</a></span>
   </div>
   <div class="actions-section">
     <button class="btn btn-icon" id="theme-toggle" title="מצב בהיר / כהה">🌙</button>
@@ -260,6 +263,7 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
     <button class="btn" id="btn-open" title="פתיחת ZIP (Ctrl+O)">פתיחת ZIP</button>
     <button class="btn btn-primary" id="btn-export" title="הורדת ZIP (Ctrl+Shift+S)">הורדת ZIP</button>
     <button class="btn" id="btn-check" title="בדיקת תקינות">בדיקת תקינות <span class="badge" id="badge-err" hidden>0</span><span class="badge warn" id="badge-warn" hidden>0</span></button>
+    <button class="btn" id="btn-gemini" title="שליחת הפרויקט לג'מיני">✨ ג'מיני</button>
     <button class="btn" id="btn-help" title="עזרה ואודות">עזרה</button>
   </div>
 </header>
@@ -337,7 +341,7 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
 "use strict";
 /* =========================================================================
    עורך תוספי כרום
-   רעיון: מיני האקר (mitmachim.top/post/1239410) · יוצר: צול גאה (TSOOLGEE.UK)
+   רעיון: מיני האקר (mitmachim.top/user/מיני-האקר) · יוצר: צול גאה (TSOOLGEE.UK)
    ========================================================================= */
 
 const $ = id => document.getElementById(id);
@@ -993,7 +997,9 @@ function welcomeEl(){
       <span class="kc"><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>חיפוש בקובץ</span>
     </div>
     <div style="font-size:11px;opacity:.75;text-align:center;line-height:1.9">
-      רעיון: מיני האקר · פיתוח: צול גאה — TSOOLGEE.UK<br>הקבצים נשמרים בדפדפן שלכם בלבד ולא נשלחים לשום מקום.
+      הרעיון של <a href="https://mitmachim.top/user/%D7%9E%D7%99%D7%A0%D7%99-%D7%94%D7%90%D7%A7%D7%A8" target="_blank" rel="noopener" style="color:var(--accent-color);font-weight:600">@מיני האקר</a>
+      · פיתוח: <a href="https://TSOOLGEE.UK" target="_blank" rel="noopener" style="color:var(--accent-color)">צול גאה — TSOOLGEE.UK</a>
+      <br>הקבצים נשמרים בדפדפן שלכם בלבד ולא נשלחים לשום מקום.
     </div>`;
   d.querySelector('[data-a=new]').onclick = newProject;
   d.querySelector('[data-a=open]').onclick = () => $('zip-input').click();
@@ -1744,6 +1750,51 @@ async function copyProjectText(){
           buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
 }
 
+/* ===================== שליחה לבינה מלאכותית ===================== */
+/* קובץ ההסבר שנשלח יחד עם הפרויקט — אומר לבינה מה היא מקבלת ובאיזה פורמט לענות */
+function aiPrompt(){
+  return [
+    'אני עורך תוסף כרום (Chrome Extension, manifest v3) בעורך שרץ בדפדפן.',
+    'מצורף מבנה הפרויקט ותוכן כל קבצי הטקסט שבו.',
+    '',
+    'כללים לתשובה שלך:',
+    '1. החזר קבצים שלמים בלבד — לא קטעים, לא diff, ולא "הוסף כאן".',
+    '2. כל קובץ בגוש קוד נפרד, ומעליו שורה בדיוק בפורמט:  --- שם/הקובץ ---',
+    '3. אל תיגע בקבצים שלא ביקשתי לשנות.',
+    '4. manifest.json חייב להישאר JSON תקין — בלי הערות ובלי פסיק אחרון.',
+    '5. ב-manifest v3 אסור קוד JS בתוך ה-HTML: בלי <script> מוטמע ובלי onclick="".',
+    '   כל הקוד בקובץ .js נפרד שנטען עם <script src="...">.',
+    '',
+    'מה שאני צריך: ',
+    '',
+    '=========================================',
+    '',
+    projectAsText()
+  ].join('\n');
+}
+async function askGemini(){
+  if (!P.files.size) return toast('הפרויקט ריק — אין מה לשלוח.', 'warn');
+  const txt = aiPrompt();
+  /* פותחים קודם, כדי לא לאבד את מחוות המשתמש ולהיחסם כחלון קופץ */
+  const win = window.open('https://gemini.google.com/app', 'gemini-chat',
+                          'width=520,height=820,noopener,noreferrer');
+  let copied = false;
+  try { await navigator.clipboard.writeText(txt); copied = true; } catch(e){}
+  if (copied && win){
+    toast('קובץ ההסבר והפרויקט הועתקו. הדביקו בג\'מיני עם <kbd>Ctrl</kbd>+<kbd>V</kbd> וכתבו מה צריך.', 'ok');
+    return;
+  }
+  const w = document.createElement('div');
+  w.innerHTML = win
+    ? '<div class="hint">הדפדפן חסם העתקה אוטומטית. הטקסט מסומן — העתיקו עם <kbd>Ctrl</kbd>+<kbd>C</kbd> והדביקו בחלון ג\'מיני שנפתח:</div>'
+    : '<div class="hint">הדפדפן חסם את חלון ג\'מיני. פתחו <a href="https://gemini.google.com/app" target="_blank" rel="noopener" style="color:var(--accent-color)">gemini.google.com</a> ידנית, והדביקו שם את הטקסט הבא:</div>';
+  const t = document.createElement('textarea');
+  t.value = txt; t.rows = 14; t.readOnly = true; t.style.direction = 'ltr'; t.style.textAlign = 'left';
+  w.appendChild(t);
+  setTimeout(() => { t.focus(); t.select(); }, 60);
+  modal({ title:'שליחה לג\'מיני', body:w, wide:true, buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
+}
+
 /* ===================== עזרה ===================== */
 function showHelp(){
   modal({ wide:true, title:'עזרה ואודות', body:`
@@ -1759,6 +1810,11 @@ function showHelp(){
     </ol>
     <h4>איך מחליפים אייקון?</h4>
     <div>פותחים את קובץ האייקון בעץ ולוחצים <b>החלפת תמונה</b>, או גוררים תמונה חדשה לתוך התיקייה <code>icons</code>. אפשר גם להעתיק תמונה וללחוץ <kbd>Ctrl</kbd>+<kbd>V</kbd>.</div>
+    <h4>שליחה לג'מיני</h4>
+    <div>הכפתור <b>✨ ג'מיני</b> פותח חלון שיחה עם ג'מיני ומעתיק ללוח קובץ הסבר שכולל את מבנה הפרויקט,
+    את תוכן הקבצים, והנחיות לבינה באיזה פורמט להחזיר קוד. נשאר רק להדביק (<kbd>Ctrl</kbd>+<kbd>V</kbd>)
+    ולכתוב מה צריך. את הקבצים שיחזרו מדביקים בחזרה לקבצים המתאימים בעורך.
+    <br><span class="hint">ג'מיני לא מאפשר שליחה אוטומטית מקישור, ולכן נדרשת הדבקה אחת.</span></div>
     <h4>העתקת הפרויקט כטקסט</h4>
     <div>הכפתור 📋 בסרגל הקבצים מעתיק ללוח את מבנה הפרויקט ואת תוכן כל קבצי הטקסט, בפורמט נוח להדבקה — למשל כששואלים שאלה בפורום או מתייעצים על הקוד.</div>
     <h4>איפה נשמרת העבודה?</h4>
@@ -1770,7 +1826,11 @@ function showHelp(){
       Ctrl+B סרגל צד · Ctrl+Z / Ctrl+Y ביטול וחזרה · F2 שינוי שם · Del מחיקה
     </div>
     <div class="credit-box">
-      רעיון מקורי: <b>מיני האקר</b> — <a href="https://mitmachim.top/post/1239410" target="_blank" rel="noopener">mitmachim.top/post/1239410</a><br>
+      <div style="font-size:14px;margin-bottom:6px">💡 הרעיון לכלי הזה הוא של
+        <a href="https://mitmachim.top/user/%D7%9E%D7%99%D7%A0%D7%99-%D7%94%D7%90%D7%A7%D7%A8" target="_blank" rel="noopener"><b>@מיני האקר</b></a></div>
+      הוא זה שחשב על כלי שיחסוך למתחילים את יצירת קבצי התוסף, ופרסם את הגרסה הראשונה
+      <a href="https://mitmachim.top/post/1239410" target="_blank" rel="noopener">בשרשור הזה במתמחים</a>.
+      הכלי שלפניכם הוא מימוש של הרעיון שלו בדפדפן.<br><br>
       פיתוח ויצירה: <b>צול גאה</b> — <a href="https://TSOOLGEE.UK" target="_blank" rel="noopener">TSOOLGEE.UK</a>
     </div>`,
     buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
@@ -1913,6 +1973,7 @@ $('btn-projects').onclick = projectsDialog;
 $('btn-open').onclick = () => $('zip-input').click();
 $('btn-export').onclick = exportZip;
 $('btn-help').onclick = showHelp;
+$('btn-gemini').onclick = askGemini;
 $('t-newfile').onclick = () => newFile(currentFolder());
 $('t-newfolder').onclick = () => newFolder(currentFolder());
 $('t-upload').onclick = () => pickUpload(currentFolder());
