@@ -243,6 +243,34 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
 .toast.warn{border-inline-start-color:var(--warning-color)}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
+/* ---------- חלונית ה-AI ---------- */
+.ai-panel{width:360px;min-width:260px;max-width:620px;background:var(--bg-secondary);border-right:1px solid var(--border-color);display:none;flex-direction:column;flex-shrink:0}
+body.ai-open .ai-panel{display:flex}
+.ai-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border-color);font-size:12px;font-weight:700;color:var(--text-muted)}
+.ai-head .ai-tools{display:flex;gap:2px}
+.ai-setup{padding:10px;border-bottom:1px solid var(--border-color);display:none;flex-direction:column;gap:7px;font-size:12px}
+.ai-setup.open{display:flex}
+.ai-setup label{color:var(--text-muted);font-size:11.5px}
+.ai-setup input,.ai-setup select{width:100%;background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-main);border-radius:var(--r);padding:6px 8px;font-size:12px}
+.ai-setup input:focus,.ai-setup select:focus{outline:none;border-color:var(--accent-hover)}
+.ai-setup .row{display:flex;gap:6px}
+.ai-setup a{color:var(--accent-color)}
+.ai-msgs{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:9px}
+.ai-msg{border-radius:var(--r-lg);padding:9px 11px;font-size:12.5px;line-height:1.75;max-width:96%;white-space:pre-wrap;word-break:break-word}
+.ai-msg.me{background:var(--accent-color);color:#fff;align-self:flex-start}
+.ai-msg.bot{background:var(--bg-primary);border:1px solid var(--border-color);align-self:flex-end}
+.ai-msg.err{background:var(--bg-primary);border:1px solid var(--danger-color);color:var(--danger-color);align-self:flex-end}
+.ai-msg pre{background:var(--editor-bg);border:1px solid var(--border-color);border-radius:var(--r);padding:8px;margin:7px 0;overflow-x:auto;direction:ltr;text-align:left;font-family:var(--mono);font-size:11.5px;white-space:pre}
+.ai-msg .apply{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.ai-msg .apply button{background:var(--accent-color);color:#fff;border:none;border-radius:var(--r);padding:4px 9px;font-size:11.5px;cursor:pointer;font-family:var(--mono);direction:ltr}
+.ai-msg .apply button:hover{background:var(--accent-hover)}
+.ai-msg .apply button.all{background:var(--bg-tertiary);color:var(--text-main);border:1px solid var(--border-color);font-family:inherit}
+.ai-empty{color:var(--text-muted);font-size:12px;text-align:center;padding:18px;line-height:1.9}
+.ai-input{border-top:1px solid var(--border-color);padding:8px;display:flex;flex-direction:column;gap:6px}
+.ai-input textarea{width:100%;background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-main);border-radius:var(--r);padding:7px 9px;font-size:12.5px;resize:vertical;font-family:inherit;min-height:56px}
+.ai-input textarea:focus{outline:none;border-color:var(--accent-hover)}
+.ai-input .bar{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.ai-input .ctx{display:flex;align-items:center;gap:5px;color:var(--text-muted);font-size:11.5px;cursor:pointer}
 .dropzone{position:fixed;inset:0;z-index:1300;background:var(--overlay);display:none;align-items:center;justify-content:center;pointer-events:none}
 .dropzone.on{display:flex}
 @media (max-width:1180px){ .credits{display:none} }
@@ -266,7 +294,8 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
     <button class="btn" id="btn-open" title="פתיחת ZIP (Ctrl+O)">פתיחת ZIP</button>
     <button class="btn btn-primary" id="btn-export" title="הורדת ZIP (Ctrl+Shift+S)">הורדת ZIP</button>
     <button class="btn" id="btn-check" title="בדיקת תקינות">בדיקת תקינות <span class="badge" id="badge-err" hidden>0</span><span class="badge warn" id="badge-warn" hidden>0</span></button>
-    <button class="btn" id="btn-gemini" title="שליחת הפרויקט לג'מיני">✨ ג'מיני</button>
+    <button class="btn" id="btn-ai" title="עוזר AI בתוך הדף">🤖 צ'אט</button>
+    <button class="btn" id="btn-gemini" title="פתיחת ג'מיני בכרטיסייה חדשה עם הפרומפט">✨ ג'מיני</button>
     <button class="btn" id="btn-help" title="עזרה ואודות">עזרה</button>
   </div>
 </header>
@@ -315,6 +344,42 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
       <div class="pl" id="p-list"></div>
     </div>
   </main>
+  <aside class="ai-panel" id="ai-panel">
+    <div class="ai-head">
+      <span>🤖 עוזר AI</span>
+      <span class="ai-tools">
+        <button class="icon-btn" id="ai-cfg" title="מפתח ומודל">⚙</button>
+        <button class="icon-btn" id="ai-clear" title="ניקוי השיחה">🗑</button>
+        <button class="icon-btn" id="ai-close" title="סגירה">✕</button>
+      </span>
+    </div>
+    <div class="ai-setup" id="ai-setup">
+      <div>
+        <label for="ai-key">מפתח API של Gemini</label>
+        <input type="password" id="ai-key" placeholder="AIza…" spellcheck="false" autocomplete="off">
+      </div>
+      <div>
+        <label for="ai-model">מודל</label>
+        <div class="row">
+          <select id="ai-model"><option value="">— טענו את הרשימה —</option></select>
+          <button class="btn" id="ai-load">טעינה</button>
+        </div>
+      </div>
+      <div class="hint" style="font-size:11px;line-height:1.7">
+        המפתח נשמר רק בדפדפן שלכם ונשלח ישירות לגוגל — לא עובר דרך שום שרת אחר.
+        אפשר להנפיק מפתח חינם ב<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">AI Studio</a>.
+      </div>
+    </div>
+    <div class="ai-msgs" id="ai-msgs"></div>
+    <div class="ai-input">
+      <textarea id="ai-text" placeholder="מה צריך לשנות בתוסף?" spellcheck="false"></textarea>
+      <div class="bar">
+        <label class="ctx"><input type="checkbox" id="ai-ctx" checked> לשלוח את הפרויקט</label>
+        <button class="btn btn-primary" id="ai-send">שליחה</button>
+      </div>
+    </div>
+  </aside>
+
 </div>
 
 <footer class="status-bar">
@@ -1808,13 +1873,23 @@ function aiPrompt(){
 async function askGemini(){
   if (!P.files.size) return toast('הפרויקט ריק — אין מה לשלוח.', 'warn');
   const txt = aiPrompt();
-  /* פותחים קודם, כדי לא לאבד את מחוות המשתמש ולהיחסם כחלון קופץ */
-  const win = window.open('https://gemini.google.com/app', 'gemini-chat',
-                          'width=520,height=820,noopener,noreferrer');
+  /* מטמיעים את הפרומפט בקישור עצמו. אם הוא ארוך מדי לכתובת — פותחים בלי,
+     וההעתקה ללוח מכסה את המקרה הזה ממילא. */
+  /* עברית תופסת פי ~2.7 אחרי encode, ולכן פרויקט גדול לא נכנס לכתובת.
+     במקרה כזה מטמיעים רק את ההנחיות, והפרויקט המלא מגיע מהלוח. */
+  let q = encodeURIComponent(txt);
+  if (q.length > 16000) q = encodeURIComponent([
+    txt.split('=========================================')[0].trim(),
+    '',
+    'הפרויקט המלא נמצא בלוח שלי — אני מדביק אותו בהודעה הבאה.'
+  ].join(String.fromCharCode(10)));
+  const url = 'https://gemini.google.com/app?q=' + q;
+  /* פותחים קודם, כדי לא לאבד את מחוות המשתמש ולהיחסם כחוסם-פופאפים */
+  const win = window.open(url, '_blank', 'noopener');
   let copied = false;
   try { await navigator.clipboard.writeText(txt); copied = true; } catch(e){}
   if (copied && win){
-    toast('קובץ ההסבר והפרויקט הועתקו. הדביקו בג\'מיני עם <kbd>Ctrl</kbd>+<kbd>V</kbd> וכתבו מה צריך.', 'ok');
+    toast('נפתחה כרטיסייה בג\'מיני. אם הפרומפט לא הופיע מעצמו — הוא בלוח, הדביקו עם <kbd>Ctrl</kbd>+<kbd>V</kbd>.', 'ok');
     return;
   }
   const w = document.createElement('div');
@@ -1826,6 +1901,170 @@ async function askGemini(){
   w.appendChild(t);
   setTimeout(() => { t.focus(); t.select(); }, 60);
   modal({ title:'שליחה לג\'מיני', body:w, wide:true, buttons:[{ label:'סגירה', cls:'btn-primary', value:true }] });
+}
+
+/* ===================== חלונית AI מובנית (Gemini API) ===================== */
+const GAPI = 'https://generativelanguage.googleapis.com/v1beta';
+const AI = { history:[], busy:false };
+const aiKey   = () => prefs.get('gkey', '');
+const aiModel = () => prefs.get('gmodel', '');
+
+function aiToggle(open){
+  const on = open === undefined ? !document.body.classList.contains('ai-open') : open;
+  document.body.classList.toggle('ai-open', on);
+  prefs.set('aiopen', on);
+  if (on){
+    $('ai-key').value = aiKey();
+    if (!aiKey()) $('ai-setup').classList.add('open');
+    aiRender();
+    setTimeout(() => $(aiKey() ? 'ai-text' : 'ai-key').focus(), 50);
+  }
+}
+async function aiLoadModels(){
+  const key = $('ai-key').value.trim();
+  if (!key) return toast('צריך להזין מפתח API קודם.', 'warn');
+  prefs.set('gkey', key);
+  const sel = $('ai-model');
+  sel.innerHTML = '<option value="">טוען…</option>';
+  try {
+    const r = await fetch(`${GAPI}/models?key=${encodeURIComponent(key)}`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message);
+    const list = (d.models || [])
+      .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map(m => ({ id:String(m.name).replace(/^models\//, ''), label:m.displayName || m.name }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    if (!list.length) throw new Error('לא הוחזרו מודלים שתומכים בשיחה עבור המפתח הזה.');
+    sel.innerHTML = '';
+    for (const m of list){
+      const o = document.createElement('option');
+      o.value = m.id; o.textContent = m.label + '  (' + m.id + ')';
+      sel.appendChild(o);
+    }
+    const want = aiModel();
+    sel.value = list.some(m => m.id === want) ? want
+              : (list.find(m => /flash/i.test(m.id)) || list[0]).id;
+    prefs.set('gmodel', sel.value);
+    toast(`נטענו <span class="num">${list.length}</span> מודלים שזמינים למפתח שלכם`, 'ok');
+  } catch(e){
+    sel.innerHTML = '<option value="">— נכשל —</option>';
+    aiPush('err', 'טעינת רשימת המודלים נכשלה: ' + e.message);
+    aiRender();
+  }
+}
+function aiSystem(){
+  return [
+    'אתה עוזר לכתוב תוסף כרום (Chrome Extension, manifest v3) בעורך שרץ בדפדפן.',
+    'כללים לתשובה:',
+    '1. כשאתה נותן קוד — החזר קבצים שלמים, לא קטעים ולא diff.',
+    '2. כל קובץ בגוש קוד נפרד, ומעליו שורה בדיוק בפורמט:  --- שם/הקובץ ---',
+    '3. אל תיגע בקבצים שלא ביקשו לשנות.',
+    '4. manifest.json חייב להישאר JSON תקין — בלי הערות ובלי פסיק אחרון.',
+    '5. ב-manifest v3 אסור JS בתוך HTML: בלי <script> מוטמע ובלי onclick="".',
+    '6. ענה בעברית, בקצרה.',
+    '',
+    'מצב הפרויקט הנוכחי:',
+    projectAsText()
+  ].join('\n');
+}
+const aiPush = (role, text) => AI.history.push({ role, text });
+
+async function aiSend(){
+  if (AI.busy) return;
+  const key = aiKey(), model = $('ai-model').value || aiModel();
+  const text = $('ai-text').value.trim();
+  if (!key){ $('ai-setup').classList.add('open'); return toast('צריך מפתח API של Gemini.', 'warn'); }
+  if (!model){ $('ai-setup').classList.add('open'); return toast('בחרו מודל מהרשימה.', 'warn'); }
+  if (!text) return;
+  prefs.set('gmodel', model);
+  $('ai-text').value = '';
+  aiPush('me', text);
+  AI.busy = true; $('ai-send').disabled = true;
+  aiRender(true);
+  try {
+    const contents = AI.history.filter(m => m.role !== 'err')
+      .map(m => ({ role: m.role === 'me' ? 'user' : 'model', parts:[{ text:m.text }] }));
+    const body = { contents };
+    if ($('ai-ctx').checked) body.systemInstruction = { parts:[{ text: aiSystem() }] };
+    const r = await fetch(`${GAPI}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
+      { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message);
+    const out = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
+    if (!out) throw new Error('המודל לא החזיר טקסט. ייתכן שהתשובה נחסמה על ידי מסנני הבטיחות.');
+    aiPush('bot', out);
+  } catch(e){
+    aiPush('err', 'הבקשה נכשלה: ' + e.message +
+      '\n(אם אתם מאחורי סינון רשת, ייתכן שהגישה ל-googleapis.com חסומה.)');
+  } finally {
+    AI.busy = false; $('ai-send').disabled = false;
+    aiRender();
+  }
+}
+/* מזהה גושי "--- נתיב ---" ואחריהם קוד, כדי לאפשר החלה בלחיצה */
+function aiParseFiles(text){
+  const out = [], re = /^---[ \t]*(.+?)[ \t]*---[ \t]*\r?\n```[^\n]*\r?\n([\s\S]*?)\r?\n```/gm;
+  let m; while ((m = re.exec(text)) !== null) out.push({ path:m[1].trim(), code:m[2] });
+  return out;
+}
+function aiApply(path, code){
+  if (partInvalid(base(path)) || !base(path)) return toast('שם קובץ לא חוקי: ' + esc(path), 'err');
+  const f = P.files.get(path);
+  if (f && f.binary) return toast('אי אפשר להחליף קובץ בינארי בטקסט.', 'err');
+  if (f){
+    f.undo.push({ text:f.text, sel:0 }); f.redo.length = 0;   /* Ctrl+Z יחזיר */
+    f.text = code; f.lastText = code; f.dirty = true;
+  } else addFile(path, code, { dirty:true });
+  if (active === path){ ta.value = code; paint(); updatePos(); }
+  if (path === 'manifest.json') syncNameFromManifest(true);
+  renderTree(); renderTabs(); scheduleValidate(); scheduleSave();
+  toast('הוחל על <span class="num">' + esc(path) + '</span> · Ctrl+Z מבטל', 'ok');
+}
+function aiRender(thinking){
+  const box = $('ai-msgs');
+  box.innerHTML = '';
+  if (!AI.history.length && !thinking){
+    box.innerHTML = '<div class="ai-empty">שאלו כל דבר על התוסף שלכם.<br>' +
+      'התשובות שמכילות קבצים יופיעו עם כפתור החלה ישירה על הפרויקט.</div>';
+    return;
+  }
+  for (const m of AI.history){
+    const d = document.createElement('div');
+    d.className = 'ai-msg ' + (m.role === 'me' ? 'me' : m.role === 'err' ? 'err' : 'bot');
+    if (m.role === 'bot'){
+      /* טקסט מוברח, וגושי קוד מוצגים כ-pre */
+      d.innerHTML = esc(m.text).replace(/```[^\n]*\n([\s\S]*?)\n```/g, (x, code) => '<pre>' + code + '</pre>');
+      const files = aiParseFiles(m.text);
+      if (files.length){
+        const bar = document.createElement('div'); bar.className = 'apply';
+        for (const f of files){
+          const b = document.createElement('button');
+          b.textContent = 'החל: ' + f.path;
+          b.onclick = () => aiApply(f.path, f.code);
+          bar.appendChild(b);
+        }
+        if (files.length > 1){
+          const all = document.createElement('button');
+          all.className = 'all'; all.textContent = 'החל את כל ' + files.length + ' הקבצים';
+          all.onclick = async () => {
+            const ok = await confirmDlg('החלת קבצים',
+              'להחיל ' + files.length + ' קבצים על הפרויקט?<br><span class="hint">' +
+              files.map(x => esc(x.path)).join('<br>') + '</span>');
+            if (ok) files.forEach(x => aiApply(x.path, x.code));
+          };
+          bar.appendChild(all);
+        }
+        d.appendChild(bar);
+      }
+    } else d.textContent = m.text;
+    box.appendChild(d);
+  }
+  if (thinking){
+    const d = document.createElement('div');
+    d.className = 'ai-msg bot'; d.textContent = 'חושב…';
+    box.appendChild(d);
+  }
+  box.scrollTop = box.scrollHeight;
 }
 
 /* ===================== עזרה ===================== */
@@ -1844,6 +2083,13 @@ function showHelp(){
     <h4>איך מחליפים אייקון?</h4>
     <div>אם תיקיית <code>icons</code> ריקה, יש בתוכה כפתור <b>הוספת האייקונים המובנים</b> שיוצר שלושה אייקונים מוכנים (16/48/128) בלחיצה — אותה פעולה קיימת גם בתפריט ⋯ של כל תיקייה.
     להחלפה: פותחים את קובץ האייקון ולוחצים <b>החלפת תמונה</b>, גוררים תמונה לתוך התיקייה, או מעתיקים תמונה ולוחצים <kbd>Ctrl</kbd>+<kbd>V</kbd>.</div>
+    <h4>עוזר AI בתוך הדף</h4>
+    <div>הכפתור <b>🤖 צ'אט</b> פותח חלונית שיחה בצד. צריך מפתח API של Gemini
+    (חינם מ-<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">AI Studio</a>) — מזינים אותו פעם אחת בגלגל השיניים,
+    לוחצים <b>טעינה</b> ובוחרים מודל מתוך אלה שזמינים למפתח שלכם.
+    המפתח נשמר רק בדפדפן ונשלח ישירות לגוגל.
+    כשהתשובה מכילה קבצים מופיע כפתור <b>החל</b> שכותב אותם ישירות לפרויקט, ו-<kbd>Ctrl</kbd>+<kbd>Z</kbd> מבטל.
+    <br><span class="hint">שליחה: <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. זו התכונה היחידה בכלי שדורשת אינטרנט.</span></div>
     <h4>שליחה לג'מיני</h4>
     <div>הכפתור <b>✨ ג'מיני</b> פותח חלון שיחה עם ג'מיני ומעתיק ללוח קובץ הסבר שכולל את מבנה הפרויקט,
     את תוכן הקבצים, והנחיות לבינה באיזה פורמט להחזיר קוד. נשאר רק להדביק (<kbd>Ctrl</kbd>+<kbd>V</kbd>)
@@ -2008,6 +2254,15 @@ $('btn-open').onclick = () => $('zip-input').click();
 $('btn-export').onclick = exportZip;
 $('btn-help').onclick = showHelp;
 $('btn-gemini').onclick = askGemini;
+$('btn-ai').onclick    = () => aiToggle();
+$('ai-close').onclick  = () => aiToggle(false);
+$('ai-cfg').onclick    = () => $('ai-setup').classList.toggle('open');
+$('ai-load').onclick   = aiLoadModels;
+$('ai-send').onclick   = aiSend;
+$('ai-clear').onclick  = () => { AI.history = []; aiRender(); };
+$('ai-key').onchange   = () => prefs.set('gkey', $('ai-key').value.trim());
+$('ai-model').onchange = () => prefs.set('gmodel', $('ai-model').value);
+$('ai-text').onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); aiSend(); } };
 $('t-newfile').onclick = () => newFile(currentFolder());
 $('t-newfolder').onclick = () => newFolder(currentFolder());
 $('t-upload').onclick = () => pickUpload(currentFolder());
@@ -2114,6 +2369,7 @@ window.addEventListener('resize', syncScroll);
   setWrap(prefs.get('wrap', false));
   const w = prefs.get('sbw', 260); $('sidebar').style.width = w + 'px';
   if (prefs.get('sbc', false)) document.body.classList.add('sb-collapsed');
+  if (prefs.get('aiopen', false)) aiToggle(true);
 
   let restored = false;
   try {
