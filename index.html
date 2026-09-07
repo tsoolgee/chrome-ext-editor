@@ -236,7 +236,8 @@ body.wrap-on .hl,body.wrap-on .code-textarea{white-space:pre-wrap;word-break:bre
 .qo .qi.sel .p{color:#e8f2fa}
 
 /* toasts */
-.toasts{position:fixed;bottom:36px;left:14px;z-index:1200;display:flex;flex-direction:column;gap:8px;direction:rtl}
+.toasts{position:fixed;bottom:36px;left:14px;transition:left .16s ease;z-index:1200;display:flex;flex-direction:column;gap:8px;direction:rtl}
+body.ai-open .toasts{left:374px}
 .toast{background:var(--bg-secondary);border:1px solid var(--border-color);border-inline-start:3px solid var(--accent-color);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:10px 14px;font-size:12.5px;max-width:340px;animation:tin .18s ease}
 .toast.ok{border-inline-start-color:var(--ok-color)}
 .toast.err{border-inline-start-color:var(--danger-color)}
@@ -270,7 +271,9 @@ body.ai-open .ai-panel{display:flex}
 .ai-input textarea{width:100%;background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-main);border-radius:var(--r);padding:7px 9px;font-size:12.5px;resize:vertical;font-family:inherit;min-height:56px}
 .ai-input textarea:focus{outline:none;border-color:var(--accent-hover)}
 .ai-input .bar{display:flex;align-items:center;gap:8px;justify-content:space-between}
-.ai-input .ctx{display:flex;align-items:center;gap:5px;color:var(--text-muted);font-size:11.5px;cursor:pointer}
+.ai-input .ai-opt{display:flex;align-items:center;gap:5px;color:var(--text-muted);font-size:11.5px;cursor:pointer;min-width:0}
+.ai-input .ai-opt input{flex-shrink:0;margin:0}
+.ai-input .bar #ai-send{flex-shrink:0}
 .dropzone{position:fixed;inset:0;z-index:1300;background:var(--overlay);display:none;align-items:center;justify-content:center;pointer-events:none}
 .dropzone.on{display:flex}
 @media (max-width:1180px){ .credits{display:none} }
@@ -374,7 +377,7 @@ body.ai-open .ai-panel{display:flex}
     <div class="ai-input">
       <textarea id="ai-text" placeholder="מה צריך לשנות בתוסף?" spellcheck="false"></textarea>
       <div class="bar">
-        <label class="ctx"><input type="checkbox" id="ai-ctx" checked> לשלוח את הפרויקט</label>
+        <label class="ai-opt"><input type="checkbox" id="ai-ctx" checked> לשלוח את הפרויקט</label>
         <button class="btn btn-primary" id="ai-send">שליחה</button>
       </div>
     </div>
