@@ -93,6 +93,9 @@ body.sb-collapsed .sidebar,body.sb-collapsed .resizer{display:none}
 .tree-item .more:hover{background:var(--bg-active);color:var(--text-main)}
 .tree-item .rn{background:var(--bg-primary);border:1px solid var(--accent-hover);color:var(--text-main);border-radius:4px;padding:1px 4px;font-size:13px;width:100%;font-family:var(--mono)}
 .tree-empty{color:var(--text-muted);font-size:12px;padding:14px;text-align:center;direction:rtl}
+.tree-item.hint-row{color:var(--accent-color);border:1px dashed var(--border-color)}
+.tree-item.hint-row:hover{border-color:var(--accent-hover);background:var(--bg-hover)}
+.tree-item.hint-row .nm{direction:rtl;text-align:right;font-size:12px}
 .resizer{width:5px;cursor:col-resize;background:transparent;flex-shrink:0;margin-inline-start:-3px;z-index:5}
 .resizer:hover,.resizer.on{background:var(--accent-hover)}
 
@@ -1027,6 +1030,21 @@ function viewerEl(f){
   return d;
 }
 
+/* יוצר את שלושת אייקוני ברירת המחדל בתיקייה מבוקשת */
+function addBuiltinIcons(folder){
+  const made = [];
+  for (const size of [16, 48, 128]){
+    let path = join(folder, 'icon' + size + '.png');
+    if (P.files.has(path) || P.folders.has(path)) path = uniquePath(path);
+    addFile(path, canvasBytes(makeIcon(size)), { dirty:true });
+    made.push(base(path));
+  }
+  if (folder) P.folders.add(folder);
+  collapsed.delete(folder);
+  renderTree(); scheduleValidate(); scheduleSave();
+  toast('נוספו האייקונים: <span class="num">' + made.join(' · ') + '</span>', 'ok');
+}
+
 /* ===================== עץ הקבצים ===================== */
 function iconFor(p){
   if (P.folders.has(p)) return collapsed.has(p) ? '📁' : '📂';
@@ -1065,10 +1083,24 @@ function renderTree(){
     const files = node.files.sort((a, b) => base(a).localeCompare(base(b)));
     for (const d of dirs){
       host.appendChild(row(d.path, true, depth));
-      if (!collapsed.has(d.path)) walk(d, depth+1, host);
+      if (!collapsed.has(d.path)){
+        walk(d, depth+1, host);
+        if (base(d.path) === 'icons' && !d.files.length && !d.dirs.size)
+          host.appendChild(iconHintRow(d.path, depth+1));
+      }
     }
     for (const f of files) host.appendChild(row(f, false, depth));
   }
+}
+function iconHintRow(path, depth){
+  const el = document.createElement('div');
+  el.className = 'tree-item hint-row';
+  el.style.paddingLeft = (6 + depth*13) + 'px';
+  el.title = 'יוצר icon16.png · icon48.png · icon128.png מוכנים לשימוש';
+  el.innerHTML = '<span class="tw"></span><span class="ic">🖼️</span>' +
+                 '<span class="nm">הוספת האייקונים המובנים</span>';
+  el.onclick = () => addBuiltinIcons(path);
+  return el;
 }
 function row(path, isDir, depth){
   const el = document.createElement('div');
@@ -1301,6 +1333,7 @@ function menuFor(path, isDir, x, y){
     items.push({ k:'🗎', t:'קובץ חדש כאן', fn:() => newFile(path) });
     items.push({ k:'🗀', t:'תיקייה חדשה כאן', fn:() => newFolder(path) });
     items.push({ k:'⬆', t:'העלאת קבצים לכאן', fn:() => pickUpload(path) });
+    items.push({ k:'🖼', t:'הוספת האייקונים המובנים', fn:() => addBuiltinIcons(path) });
     if (path){
       items.push({ sep:true });
       items.push({ k:'✎', t:'שינוי שם', sc:'F2', fn:() => startRename(path, true) });
@@ -1809,7 +1842,8 @@ function showHelp(){
       <li>אחרי כל שינוי — חוזרים לדף ולוחצים על כפתור הרענון בכרטיסיית התוסף.</li>
     </ol>
     <h4>איך מחליפים אייקון?</h4>
-    <div>פותחים את קובץ האייקון בעץ ולוחצים <b>החלפת תמונה</b>, או גוררים תמונה חדשה לתוך התיקייה <code>icons</code>. אפשר גם להעתיק תמונה וללחוץ <kbd>Ctrl</kbd>+<kbd>V</kbd>.</div>
+    <div>אם תיקיית <code>icons</code> ריקה, יש בתוכה כפתור <b>הוספת האייקונים המובנים</b> שיוצר שלושה אייקונים מוכנים (16/48/128) בלחיצה — אותה פעולה קיימת גם בתפריט ⋯ של כל תיקייה.
+    להחלפה: פותחים את קובץ האייקון ולוחצים <b>החלפת תמונה</b>, גוררים תמונה לתוך התיקייה, או מעתיקים תמונה ולוחצים <kbd>Ctrl</kbd>+<kbd>V</kbd>.</div>
     <h4>שליחה לג'מיני</h4>
     <div>הכפתור <b>✨ ג'מיני</b> פותח חלון שיחה עם ג'מיני ומעתיק ללוח קובץ הסבר שכולל את מבנה הפרויקט,
     את תוכן הקבצים, והנחיות לבינה באיזה פורמט להחזיר קוד. נשאר רק להדביק (<kbd>Ctrl</kbd>+<kbd>V</kbd>)
@@ -1858,7 +1892,7 @@ async function newProject(){
     <button class="choice" data-k="empty">
       <b>📄 פרויקט ריק</b>
       <div>אותם קבצים בדיוק ואותה תיקיית <code>icons</code> — אבל כולם ריקים לגמרי.
-      מתאים למי שבונה מאפס או מדביק קוד מבינה מלאכותית.</div>
+      זו ברירת המחדל. אפשר להוסיף את האייקונים המובנים בכל רגע בלחיצה מתוך תיקיית <code>icons</code>.</div>
       <div class="files">${esc(FILE_LIST)}</div>
     </button>`;
   w.querySelectorAll('.choice').forEach(el => el.onclick = () => modal._done(el.dataset.k));
@@ -2100,7 +2134,7 @@ window.addEventListener('resize', syncScroll);
       if (rec){ applyRecord(rec); restored = true; }
     }
   } catch(e){ restored = false; }
-  if (!restored){ P.id = newId(); loadDefaults(); tabs = ['manifest.json']; active = 'manifest.json'; }
+  if (!restored){ P.id = newId(); loadEmpty(); tabs = ['manifest.json']; active = 'manifest.json'; }
   nameGuard = true; $('ext-name').value = P.name; nameGuard = false;
   syncNameFromManifest(true);
   renderTree(); renderTabs(); showActive(); validate();
